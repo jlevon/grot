@@ -4,13 +4,22 @@
 # attempt to dump both userspace and kernel stacks for a process's  thread
 #
 
+set -f
+
 IFS=/ read pid tids <<< $1
 
 if [[ -z "$tid" ]]; then
 	tids=$(ps -L -p $pid -o lwp | sed 1d)
 fi
 
+mdbin=""
+
 for tid in $tids; do
-	pstack $pid/$tid
-	echo "0t$pid::pid2proc | ::walk thread thr | ::print -d kthread_t t_tid | ::grep '.==0t$tid' | ::eval <thr=K | ::findstack -v" | mdb -k
+	mdbin+="::echo ========== $pid/$tid ============================ ;"
+	mdbin+=$(pstack $pid/$tid | sed 's/\(.*\)/; ::echo "\1"/')
+	mdbin+="; 0t$pid::pid2proc | ::walk thread thr | ::print -d kthread_t t_tid | ::grep '.==0t$tid' | ::eval <thr=K | ::findstack -v ;"
 done
+
+#echo $mdbin
+
+echo "$mdbin" | mdb -k
