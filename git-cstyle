@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cstyle -pcC $(git status -uno -s | awk ' /.*\.[ch]/ { print $2 }')

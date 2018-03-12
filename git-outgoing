@@ -1,0 +1,22 @@
+#!/bin/bash
+
+branch=$1
+
+if [ "$branch" = "-p" ]; then
+	args="-p"
+	shift
+	branch=$1
+else
+	args="--graph --stat"
+fi
+
+if [ -z "$branch" ]; then
+	branch=$(git rev-parse --abbrev-ref --symbolic-full-name @{u})
+fi
+
+current_remote=$(echo $branch | awk -F/ '{print $1}')
+url=$(git remote get-url $current_remote)
+
+echo "Will push to $url $branch"
+echo
+git log $args $branch..HEAD

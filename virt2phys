@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# usage: virt2phys pid address
+
+pid=$1
+address=$2
+
+as=$(echo "0t$pid::pid2proc | ::print proc_t p_as" | mdb -k | awk '{print $3}')
+pfn=$(echo "$address::vatopfn -a $as" | mdb -k | grep 'maps pfn' | awk '{print $6}')
+phys=$(printf "%lx" $((($pfn << 12) | ($address & 4095))) )
+virt=$(printf "%lx" $((0x$phys + 0xfffffe0000000000)) )
+
+echo "pid $pid address $address is at physical $phys, KPM mapped at $virt"

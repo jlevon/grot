@@ -1,0 +1,14 @@
+#!/bin/bash
+
+up=$(git rev-parse --abbrev-ref --symbolic-full-name @{u})
+current_remote=$(echo $up | awk -F/ '{print $1}')
+
+for remote in $(git remote show); do
+	url=$(git remote get-url $remote)
+	if [[ $remote = $current_remote ]]; then
+		echo " * $remote $url"
+	else
+		echo "   $remote $url"
+	fi
+	
+done

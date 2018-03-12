@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# squash without pulling anything new
+
+git rebase -i $(git merge-base HEAD @{u})

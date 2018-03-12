@@ -1,0 +1,15 @@
+#!/bin/bash
+
+val=$(echo ${1#0x} | tr '[a-z]' '[A-Z]')
+bin=$(echo "ibase=16; obase=2; $val" | bc)
+
+pos=0
+set=""
+for bit in $(echo $bin | rev | fold -w1); do
+	if [ $bit = 1 ]; then
+		set="$set$pos,"
+	fi
+	((pos++))
+done
+
+echo "Hex $1, binary $bin, set bits $set"

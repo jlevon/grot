@@ -1,0 +1,10 @@
+#!/bin/bash
+
+date=$(date +%Y)
+
+files=$(git diff --stat @{u}..HEAD | ghead -n -1 | awk '{print $1}')
+for file in $files $(git status -uno -s | awk '{ print $2 }'); do
+	grep 'Copyright 2018, Joyent, Inc.' || {
+		echo "Bad copyright in $file" 2>&1
+	}
+done

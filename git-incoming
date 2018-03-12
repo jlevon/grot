@@ -1,0 +1,14 @@
+#!/bin/bash
+
+branch=$1
+
+if [ -z "$branch" ]; then
+	branch=$(git rev-parse --abbrev-ref --symbolic-full-name @{u})
+fi
+
+current_remote=$(echo $branch | awk -F/ '{print $1}')
+url=$(git remote get-url $current_remote)
+
+echo "Will pull from $url $branch"
+echo
+git log --graph --stat HEAD..$branch
