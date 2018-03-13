@@ -8,7 +8,7 @@ set -f
 
 IFS=/ read pid tids <<< $1
 
-if [[ -z "$tid" ]]; then
+if [[ -z "$tids" ]]; then
 	tids=$(ps -L -p $pid -o lwp | sed 1d)
 fi
 
