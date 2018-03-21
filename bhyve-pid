@@ -1,0 +1,3 @@
+#!/bin/bash
+
+pgrep -z $(vmadm list -H -o uuid alias=$1) zhyve
