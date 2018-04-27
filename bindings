@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for pid in $(pgrep zhyve); do
+for pid in $(pgrep bhyve); do
 	zone=$(ps -p $pid -o zone=)
 	echo "============== zone pid $pid $(vmadm list -Ho alias uuid=$zone) ($zone) ==============="
 	/zones/jlevon/lwpinfo $pid
@@ -8,7 +8,7 @@ done
 
 declare -A cpus
 
-for pid in $(pgrep zhyve); do
+for pid in $(pgrep bhyve); do
 	zone=$(ps -p $pid -o zone=)
 	alias=$(vmadm list -Ho alias uuid=$zone)
 	for cpu in $(/zones/jlevon/lwpinfo $pid  | grep bind:[0-9] | cut -d: -f 4); do
