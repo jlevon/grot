@@ -1,0 +1,42 @@
+#!/bin/bash
+# This is a simple shell script to reproduce ssh-copy-id behavior
+# on the MAC, since that shit OS does not have it natively.
+#
+# This script is under GPL version 3
+# Author: Kemel Zaidan
+# email: kemelzaidan AT gmail DOT com
+# website: kemelzaidan.com.br
+#
+
+## VARIABLES
+
+SSH_PUB_KEY=~/.ssh/id_rsa.pub
+DEST=$1
+
+# exit if no atributes were passed
+if [ $# -eq 0 ]; then
+    echo ""
+    echo "Please, type ssh-copy-id DEST"
+    echo ""
+    exit 1
+fi
+
+# test if there is a SSH public key
+if [ ! -f $SSH_PUB_KEY ]; then
+    echo 'No public SSH key found!' 
+    exit 1
+fi
+
+set -e
+
+cat $SSH_PUB_KEY | ssh $DEST "mkdir ~/.ssh; cat >> ~/.ssh/authorized_keys"
+
+ssh -oBatchMode=yes $DEST /bin/true || {
+	echo "failed to ssh in"
+	exit 1
+}
+
+# exit if successfull
+echo ""
+echo "Key successfully copied to the server"
+echo ""

@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 
 		Format_state(st, li->pr_sname, li->pr_onpro, sizeof (st));
 
-		printf("lwpid:%d state:%s bind:%d\n", li->pr_lwpid,
-		    st, li->pr_bindpro);
+		printf("lwpid:%d state:%s bind:%d lastcpu:%d\n", li->pr_lwpid,
+		    st, li->pr_bindpro, li->pr_onpro);
 	}
 }
