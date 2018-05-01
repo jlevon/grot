@@ -1,0 +1,35 @@
+#!/bin/bash
+
+GENRES="1 5 3 16 35 9 10 6 22 24 8"
+
+HEADERS=$(cat <<EOF
+-H Host: www.piccadillyrecords.com
+-H User-Agent: Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:58.0) Gecko/20100101 Firefox/58.0
+-H Accept: \*/\*
+-H Accept-Language: en-US,en;q=0.5
+-H Accept-Encoding: gzip, deflate, br
+EOF
+)
+echo $HEADERS
+HEADERS=
+
+for g in $GENRES; do
+	echo curl -c cookies $HEADERS -H "Referer: https://www.piccadillyrecords.com/" "https://www.piccadillyrecords.com/counter/catalogue.php?&genre=$g"
+	curl -c cookies $HEADERS -H "Referer: https://www.piccadillyrecords.com/" \
+	"https://www.piccadillyrecords.com/counter/catalogue.php?&genre=$g" >/dev/null
+	#cat cookies
+	curl -b cookies $HEADERS -H "Referer: https://www.piccadillyrecords.com/counter/catalogue.php?&genre=%g" \
+	https://www.piccadillyrecords.com/counter/magicmix.php >$g.m3u
+done
+
+rm cookies
+>playlist.m3u
+
+for g in $GENRES; do
+	cat $g.m3u >>playlist.m3u
+	rm $g.m3u
+done
+
+sort -u -o playlist.m3u playlist.m3u
+LD_PRELOAD=~/src/audacious/src/libaudcore/libaudcore.so ~/src/audacious/src/audacious/audacious playlist.m3u
+exit 0
