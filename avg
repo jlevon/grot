@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# calculate mean average of input values, with optional filter
+
+if [ -n "$1" ]; then
+	awk '$1 > 4.0 { a+=$1 ; b += 1; } END{print a/b}'
+else
+	awk '{ a+=$1 ; } END{print a/NR}'
+fi
+

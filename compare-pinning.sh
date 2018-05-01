@@ -5,12 +5,12 @@ vm=$1
 set -e
 
 function run() {
-	iter=10
+	iter=5
 
 	while [ $iter -gt 0 ]; do
-		count=10
+		count=5
 
-		echo "--------------------------- $1 $i --------------"
+		echo "--------------------------- $1 $iter --------------"
 		if [ "$1" = "pinned" ]; then
 			./bindings
 		fi
