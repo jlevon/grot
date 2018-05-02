@@ -13,7 +13,10 @@ viona_intr_ring:entry {
 }
 
 vmx_set_intr_ready:entry /self->t/ {
-	@intrs[cpu, args[0]->cpuid] = count();
+	this->vm = args[0]->vm;
+	this->vcpu = &this->vm->vcpu[args[0]->vcpuid];
+
+	@intrs[cpu, this->vcpu->hostcpu, this->vcpu->lastloccpu] = count();
 }
 
 viona_intr_ring:return {
@@ -25,4 +28,17 @@ ixgbe_intr_rx_work:entry {
 }
 ixgbe_intr_tx_work:entry {
 	@ixgbetx[cpu] = count();
+}
+
+END {
+	printf("tx\n\n");
+	printa(@tx);
+	printf("ixgbe tx\n\n");
+	printa(@ixgbetx);
+	printf("ixgbe rx\n\n");
+	printa(@ixgberx);
+	printf("rx\n\n");
+	printa(@rx);
+	printf("intrs CPU->vcpu\n\n");
+	printa(@intrs);
 }
