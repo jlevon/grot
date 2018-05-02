@@ -11,19 +11,21 @@ function run() {
 		count=5
 
 		echo "--------------------------- $1 $iter --------------"
+		sleep 3
 
 		# the two viona_worker_tx threads, bind to socket 1, try again
-		# if we end up with both a tx thread and a VCPU bound
+		# if we end up with both a tx thread and a VCPU bound to a core
+		# (even HT)
 		pbind -b 30 $(pgrep bhyve)/26
 		pbind -b 31 $(pgrep bhyve)/28
-		if ./bindings | grep "b3 b3" >/dev/null; then
+		if ./bindings | grep "b3.*b3" >/dev/null; then
 			echo "double-bound: restarting"
 			vmadm stop $vm
 			vmadm start $vm
-			sleep 30
 			continue
 		fi
 
+		sleep 20
 		./bindings
 
 		ssh -oBatchMode=yes $vm iperf -c 192.168.9.2 -w 2m -P4 -t 10 -i 1 >/dev/null || {
@@ -38,7 +40,6 @@ function run() {
 
 		vmadm stop $vm
 		vmadm start $vm
-		sleep 30
 		let iter-=1 || true
 	done
 

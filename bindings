@@ -20,9 +20,13 @@ done
 psrinfo -vp | while read line; do
 	htcpus=$(echo $line | grep "2 virtual" | sed 's+.*(++;s+)++;')
 	echo $line
+	out=""
 	for cpu in $htcpus; do
 		if test "${cpus[$cpu]}"; then
-			echo "   $cpu: ${cpus[$cpu]}"
+			out="$out$cpu: ${cpus[$cpu]}"
 		fi
 	done
+	if [ -n "$out" ]; then
+		echo $out
+	fi
 done
