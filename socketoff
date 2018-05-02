@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#lgroup 1 (leaf):
+# Children: none, Parent: 0
+#CPUs: 0-13 28-41
+
+#for i in $(seq 0 13) $(seq 28 41); do
+for i in $(seq 14 27) $(seq 42 55); do
+	psradm -f $i
+done
