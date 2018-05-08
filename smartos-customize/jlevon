@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -e
+set -x 
+
+mkdir -m 700 -p /root/.ssh/ || true
+
+cat /zones/jlevon/authorized_keys >>~/.ssh/authorized_keys
