@@ -1,0 +1,18 @@
+
+vms=($(vmadm list | grep BHYV | awk '{print $1}'))
+
+nr=${#vms[@]}
+
+while :; do
+	vm=${vms[$(( RANDOM % $nr))]}
+	state=$(vmadm list -p -o state uuid=$vm)
+	ram=$(vmadm get $vm | grep ram | awk -F: '{print $2}')
+	if [[ $state = running ]]; then
+		echo "stopping $state vm $ram$vm"
+		vmadm stop -f $vm
+	else
+		echo "running $state vm $ram$vm"
+		vmadm start $vm
+	fi
+	date
+done
