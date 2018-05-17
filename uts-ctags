@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# exuberant ctags can't parse our asm, so let's do it for it
+
+# cmt_ev_thread_swtch     common/disp/cmt.c       /^cmt_ev_thread_swtch(pg_t # *pg, cpu_t *cp, hrtime_t now, kthread_t *old,$/;"    f       file:
+
+exctags -R
+mv tags t.$$
+
+egrep 'ALTENTRY\(.*\)|ENTRY\(.*\)' intel/ia32/ml/*.s i86pc/ml/*.s | while read ln; do
+	file=$(echo $ln | sed 's/^\([.0-9a-z_/]*\):.*/\1/')
+	func=$(echo $ln | sed 's/^.*:.*ENTRY(\(.*\)).*/\1/')
+	match="$(echo "$ln" | sed 's/^.*://')"
+	echo "$func	$file	/^$match/;\"	f	file" >>t.$$
+done
+
+sort t.$$ >tags
