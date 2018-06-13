@@ -7,7 +7,7 @@
 exctags -R
 mv tags t.$$
 
-egrep 'ALTENTRY\(.*\)|ENTRY\(.*\)|ENTRY_NP\(.*\)' intel/ia32/ml/*.s i86pc/ml/*.s | while read ln; do
+egrep 'ALTENTRY\(.*\)|ENTRY\(.*\)|ENTRY_NP\(.*\)' intel/ia32/ml/*.s i86pc/ml/*.s intel/kdi/*.s | while read ln; do
 	file=$(echo $ln | sed 's/^\([.0-9a-z_/]*\):.*/\1/')
 	func=$(echo $ln | gsed 's/^.*:.*\(ENTRY\|ENTRY_NP\|ALTENTRY\)(\(.*\)).*/\2/')
 	match="$(echo "$ln" | sed 's/^.*://')"

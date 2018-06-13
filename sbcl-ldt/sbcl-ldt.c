@@ -15,5 +15,6 @@ int main()
 
 	__asm__ __volatile__ ("mov %0, %%fs" : : "r"(sel));
 
+	pause();
 	return (0);
 }
