@@ -1,0 +1,5 @@
+
+# vmrun='/Applications/VMware Fusion.app/Contents/Library/vmrun'
+# "$vmrun" suspend *.vmx
+# perl -i -pe 's/(?<=pendingNMI\x00{4})\x00/\x01/' *.vmss
+# "$vmrun" start *.vmx
