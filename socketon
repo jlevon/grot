@@ -1,0 +1,5 @@
+#!/bin/bash
+
+
+procs=$(psrinfo -vp | grep 'The physical' | tail -1 | sed 's/.*(//;s/)//;')
+psradm -n $procs
