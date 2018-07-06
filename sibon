@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# turn on all siblings
+
+procs=$(psrinfo -vp | grep 'The core has' | sed 's/.*(//;s/)//;' | awk '{print $2}')
+psradm -n $procs
