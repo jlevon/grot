@@ -1,0 +1,11 @@
+#!/bin/bash
+
+>/tmp/p
+for seq in $(seq 1 $1); do
+	(./gcd 1 >>/tmp/p) &
+done
+
+wait
+
+awk '{s+=$1} END {print s}' /tmp/p
+rm /tmp/p

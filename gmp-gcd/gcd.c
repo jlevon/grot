@@ -69,7 +69,7 @@ again:
       f = f * 0.1;
     }
 
-  printf ("RESULT: %.*f operations per second\n", decimals, ops_per_sec);
+  //printf ("RESULT: %.*f operations per second\n", decimals, ops_per_sec);
 #endif
   totals[(long)argument] = 1000 * niter / ti;
    //goto again;
@@ -130,14 +130,13 @@ main (int argc, char *argv[])
   mpz_urandomb (x, rs, m);
   mpz_urandomb (y, rs, n);
 
-  printf ("Calibrating CPU speed...");  fflush (stdout);
+  //printf ("Calibrating CPU speed...");  fflush (stdout);
   TIME (t, mpz_gcd (z, x, y));
-  printf ("done\n");
+  //printf ("done\n");
 
 	for (;;) {
 		long total = 0;
 
-	// FIXME: need to fork
 	for (long i = 0; i < nr; i++) {
 		pthread_create(&threads[i], NULL, (void *)runit, (void *)i);
 	}
@@ -155,7 +154,8 @@ main (int argc, char *argv[])
 			totals[i] = 0;
 		}
 
-		printf("total %lu\n", total);
+		printf("%lu\n", total);
+		break;
 	}
 
 }
