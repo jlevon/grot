@@ -1,0 +1,7 @@
+#!/bin/bash
+
+for i in $*; do
+	min=$(echo $i | sed 's/m.*//')
+	sec=$(echo $i | sed 's/.*m\(.*\)s.*/\1/;s/\..*$//' )
+	echo $(( 60 * $min + $sec ))
+done
