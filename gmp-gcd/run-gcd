@@ -1,12 +1,11 @@
 #!/bin/bash
 
-trap 'rm /tmp/p ; kill $(jobs -p) 2>/dev/null' EXIT
+trap 'rm /tmp/run_gcd* ; kill $(jobs -p) 2>/dev/null' EXIT
 
->/tmp/p
 for seq in $(seq 1 $1); do
-	(./gcd 1 >>/tmp/p) &
+	(./gcd 1 >/tmp/run_gcd$seq) &
 done
 
 wait
 
-awk '{s+=$1} END {print s}' /tmp/p
+awk '{s+=$1} END {print s}' /tmp/run_gcd*

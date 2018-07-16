@@ -1,3 +1,3 @@
 
 gcd: gcd.c
-	gcc -m64 -std=c99 -o gcd gcd.c -lpthread -lgmp
+	gcc -D_GNU_SOURCE -g -m64 -std=c99 -o gcd gcd.c -lpthread -lgmp

@@ -21,6 +21,8 @@ GMPbench.  If not, see http://www.gnu.org/licenses/.  */
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 #include "gmp.h"
 #include "timing.h"
 
@@ -38,7 +40,7 @@ double t;
 static long
 runit(void *argument)
 {
-  unsigned long int m, n, i, niter, t0, ti;
+  unsigned long int m, n, i, niter, t0, ti, t1;
   double f, ops_per_sec;
   int decimals;
   m = 256;
@@ -50,13 +52,22 @@ again:
   printf ("Multiplying %lu-bit number with %lu-bit number %lu times...",
  	  m, n, niter);
   fflush (stdout);
-#endif
   t0 = cputime ();
+#endif
+  struct rusage rus0, rus1;
+  getrusage (RUSAGE_THREAD, &rus0);
+  t0 =  ( rus0.ru_utime.tv_sec * 1000 + rus1.ru_utime.tv_usec / 1000);
+
   for (i = niter; i > 0; i--)
     {
       mpz_gcd (z, x, y);
     }
-  ti = cputime () - t0;
+#if 0
+  t1 = cputime ();
+#endif
+  getrusage (RUSAGE_THREAD, &rus1);
+  t1 =  ( rus1.ru_utime.tv_sec * 1000 + rus1.ru_utime.tv_usec / 1000);
+  ti = t1 - t0;
  // printf ("done!\n");
 
 #if 1
@@ -71,6 +82,12 @@ again:
 
   //printf ("RESULT: %.*f operations per second\n", decimals, ops_per_sec);
 #endif
+	if (ti == 0) {
+		fprintf(stderr, "ti 0 t0 %lu t1 %lu rus0 %lu %lu, rus1 %lu %lu\n", t0, t1,
+		   rus0.ru_utime.tv_sec, rus0.ru_utime.tv_usec,
+		   rus1.ru_utime.tv_sec, rus1.ru_utime.tv_usec);
+		exit(1);
+	}
   totals[(long)argument] = 1000 * niter / ti;
    //goto again;
   return 0;
@@ -97,7 +114,7 @@ cputime ()
 {
   struct rusage rus;
 
-  getrusage (0, &rus);
+  getrusage (RUSAGE_THREAD, &rus);
   return rus.ru_utime.tv_sec * 1000 + rus.ru_utime.tv_usec / 1000;
 }
 #endif
