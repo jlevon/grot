@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# revert to a particular revision of files
+
+rev=$1
+shift
+
+git checkout $rev -- $@
