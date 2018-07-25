@@ -5,13 +5,14 @@
 #include <ucontext.h>
 #include <sys/wait.h>
 
+unsigned short seg;
 
-void badcs(void) { asm volatile("movw $0x1f, %dx; movw %dx, %cs"); }
-void badds(void) { asm volatile("movw $0x1f, %dx; movw %dx, %ds"); }
-void bades(void) { asm volatile("movw $0x1f, %dx; movw %dx, %es"); }
-void badfs(void) { asm volatile("movw $0x1f, %dx; movw %dx, %fs"); }
-void badgs(void) { asm volatile("movw $0x1f, %dx; movw %dx, %gs"); }
-void badss(void) { asm volatile("movw $0x1f, %dx; movw %dx, %ss"); }
+void badcs(void) { asm volatile("movw %0, %%cs" : : "r" (seg)); }
+void badds(void) { asm volatile("movw %0, %%ds" : : "r" (seg)); }
+void bades(void) { asm volatile("movw %0, %%es" : : "r" (seg)); }
+void badfs(void) { asm volatile("movw %0, %%fs" : : "r" (seg)); }
+void badgs(void) { asm volatile("movw %0, %%gs" : : "r" (seg)); }
+void badss(void) { asm volatile("movw %0, %%ss" : : "r" (seg)); }
 
 #define SS              18      /* only stored on a privilege transition */
 #define UESP            17      /* only stored on a privilege transition */
@@ -32,7 +33,6 @@ void badss(void) { asm volatile("movw $0x1f, %dx; movw %dx, %ss"); }
 #define ES              2
 #define FS              1
 #define GS              0
-
 
 void resetfs(void)
 {
@@ -58,7 +58,7 @@ void resetfs(void)
 	}
 
 	done = 1;
-	ucp.uc_mcontext.gregs[FS] = 0x1f;
+	ucp.uc_mcontext.gregs[FS] = seg;
 	setcontext(&ucp);
 	printf("here?\n");
 }
@@ -87,7 +87,7 @@ void resetgs(void)
 	}
 
 	done = 1;
-	ucp.uc_mcontext.gregs[GS] = 0x1f;
+	ucp.uc_mcontext.gregs[GS] = seg;
 	setcontext(&ucp);
 	printf("here?\n");
 }
@@ -115,7 +115,7 @@ void resetcs(void)
 	}
 
 	done = 1;
-	ucp.uc_mcontext.gregs[CS] = 0x1f;
+	ucp.uc_mcontext.gregs[CS] = seg;
 	setcontext(&ucp);
 	printf("here?\n");
 }
@@ -143,7 +143,7 @@ void resetds(void)
 	}
 
 	done = 1;
-	ucp.uc_mcontext.gregs[DS] = 0x1f;
+	ucp.uc_mcontext.gregs[DS] = seg;
 	setcontext(&ucp);
 	printf("here?\n");
 }
@@ -171,7 +171,7 @@ void resetes(void)
 	}
 
 	done = 1;
-	ucp.uc_mcontext.gregs[ES] = 0x1f;
+	ucp.uc_mcontext.gregs[ES] = seg;
 	setcontext(&ucp);
 	printf("here?\n");
 }
@@ -200,7 +200,7 @@ void resetss(void)
 	}
 
 	done = 1;
-	ucp.uc_mcontext.gregs[SS] = 0x1f;
+	ucp.uc_mcontext.gregs[SS] = seg;
 	setcontext(&ucp);
 	printf("here?\n");
 }
@@ -223,23 +223,29 @@ void inchild(void (*func)())
 
 int main(int argc, char *argv[])
 {
-	fprintf(stderr, "resetfs\n");
+	for (seg = 0; seg < 65536; seg++ ) {
+		printf("seg = %u\n", seg);
+#if 1
+	//fprintf(stderr, "resetfs\n");
 	inchild(resetfs);
-	fprintf(stderr, "resetgs\n");
+	//fprintf(stderr, "resetgs\n");
 	inchild(resetgs);
-	fprintf(stderr, "resetcs\n");
+	//fprintf(stderr, "resetcs\n");
 	inchild(resetcs);
-	fprintf(stderr, "resetds\n");
+	//fprintf(stderr, "resetds\n");
 	inchild(resetds);
-	fprintf(stderr, "resetes\n");
+	//fprintf(stderr, "resetes\n");
 	inchild(resetes);
-	fprintf(stderr, "resetss\n");
+	//fprintf(stderr, "resetss\n");
 	inchild(resetss);
 	//return 0;
+#endif
+	//fprintf(stderr, "badcs\n");
 	inchild(badcs);
 	inchild(badds);
 	inchild(bades);
 	inchild(badfs);
 	inchild(badgs);
 	inchild(badss);
+	}
 }

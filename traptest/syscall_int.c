@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <sys/syscall.h>
 
 
 #define INT(i) { \
@@ -104,11 +105,15 @@ int main(int argc, char *argv[])
 		arg4 = argrand();
 		arg5 = argrand();
 		for (sysc = 0; sysc < 257 ; sysc++) {
+			if (sysc == SYS_stime)
+				continue; // breaks getexecname() for some reason
 			//sigactions();
 			inchild(int80);
 		}
 	
 		for (sysc = 0; sysc < 257 ; sysc++) {
+			if (sysc == SYS_stime)
+				continue; // breaks getexecname() for some reason
 			inchild(int91);
 		}
 	}

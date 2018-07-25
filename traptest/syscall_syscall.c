@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <sys/syscall.h>
 
 void inchild(void (*func)())
 {
@@ -68,7 +69,7 @@ void syscall_badrsp(void)
 	    : );
 }
 
-void syscall(void)
+void do_syscall(void)
 {
 	fprintf(stderr, "syscall(%d, %lx, %lx, %lx, %lx, %lx)\n",
 	    sysc, arg1, arg2, arg3, arg4, arg5);
@@ -120,11 +121,15 @@ int main(int argc, char *argv[])
 		arg4 = argrand();
 		arg5 = argrand();
 		for (sysc = 0; sysc < 257 ; sysc++) {
+			if (sysc == SYS_stime)
+				continue; // breaks getexecname() for some reason
 			//sigactions();
-			inchild(syscall);
+			inchild(do_syscall);
 		}
 	
 		for (sysc = 0; sysc < 257 ; sysc++) {
+			if (sysc == SYS_stime)
+				continue; // breaks getexecname() for some reason
 			inchild(sysenter);
 		}
 	}
