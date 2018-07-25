@@ -1,0 +1,10 @@
+#!/bin/bash
+
+sum=0
+
+for i in $*; do
+	sum=$(( $sum + $(./ptime-to-secs $i) ))
+done
+
+echo $sum
+bc <<< "scale=2; $sum / ($# - 1)"
