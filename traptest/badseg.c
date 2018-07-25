@@ -5,6 +5,8 @@
 #include <ucontext.h>
 #include <sys/wait.h>
 
+/* Try this on CPU0... */
+
 unsigned short seg;
 
 void badcs(void) { asm volatile("movw %0, %%cs" : : "r" (seg)); }
@@ -223,29 +225,41 @@ void inchild(void (*func)())
 
 int main(int argc, char *argv[])
 {
-	for (seg = 0; seg < 65536; seg++ ) {
+	if (argc > 1)
+		seg = atoi(argv[1]);
+
+	for (;seg < 65536; seg++ ) {
 		printf("seg = %u\n", seg);
 #if 1
-	//fprintf(stderr, "resetfs\n");
+	if (argc > 1) fprintf(stderr, "resetfs\n");
 	inchild(resetfs);
-	//fprintf(stderr, "resetgs\n");
+	if (argc > 1)fprintf(stderr, "resetgs\n");
 	inchild(resetgs);
-	//fprintf(stderr, "resetcs\n");
+	if (argc > 1)fprintf(stderr, "resetcs\n");
 	inchild(resetcs);
-	//fprintf(stderr, "resetds\n");
+	if (argc > 1)fprintf(stderr, "resetds\n");
 	inchild(resetds);
-	//fprintf(stderr, "resetes\n");
+	if (argc > 1)fprintf(stderr, "resetes\n");
 	inchild(resetes);
-	//fprintf(stderr, "resetss\n");
+	if (argc > 1)fprintf(stderr, "resetss\n");
 	inchild(resetss);
 	//return 0;
 #endif
-	//fprintf(stderr, "badcs\n");
+	if (argc > 1)fprintf(stderr, "badcs\n");
 	inchild(badcs);
+	if (argc > 1)fprintf(stderr, "badds\n");
 	inchild(badds);
+	if (argc > 1)fprintf(stderr, "bades\n");
 	inchild(bades);
+	if (argc > 1)fprintf(stderr, "badfs\n");
 	inchild(badfs);
+	if (argc > 1)fprintf(stderr, "badgs\n");
 	inchild(badgs);
+	if (argc > 1)fprintf(stderr, "badss\n");
 	inchild(badss);
+		if (argc > 1) {
+			printf( "done %u\n", seg);
+			exit(0);
+		}
 	}
 }
