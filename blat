@@ -1,0 +1,15 @@
+#!/bin/bash
+
+host=$2
+dest=/mnt/os/jlevon/$1
+set -e
+set -x
+
+tgz=/zones/jlevon/platform-latest.tgz.$$
+
+gmake live
+ssh -oBatchMode=yes root@$host /bin/true
+scp output/platform-latest.tgz root@$host:$tgz
+ssh root@$host "mount -F pcfs /dev/dsk/c1t0d0p1 /mnt || true"
+ssh root@$host "(cd $dest && rm -rf platform && tar zxvf $tgz && mv platform* platform && rm $tgz)"
+./tools/build_iso -c ttyb
