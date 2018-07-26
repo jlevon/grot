@@ -326,7 +326,6 @@ void int254() { INT(254); }
 void int255() { INT(255); }
 
 
-
 void inchild(void (*func)())
 {
 	pid_t pid;

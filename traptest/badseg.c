@@ -42,20 +42,8 @@ void resetfs(void)
 	int done = 0;
 
 	int rc = getcontext(&ucp);
-	printf("getcontext %d\n", rc);
-	printf("eip:%lx fs:%lx gs:%lx\n",
-	ucp.uc_mcontext.gregs[EIP],
-	ucp.uc_mcontext.gregs[FS],
-	ucp.uc_mcontext.gregs[GS]
-	);
 	if (done) {
 		rc = getcontext(&ucp);
-		fprintf(stderr, "done setcontext getcontext %d\n", rc);
-		fprintf(stderr, "eip:%lx fs:%lx gs:%lx\n",
-		ucp.uc_mcontext.gregs[EIP],
-		ucp.uc_mcontext.gregs[FS],
-		ucp.uc_mcontext.gregs[GS]
-		);
 		return;
 	}
 
@@ -71,20 +59,8 @@ void resetgs(void)
 	int done = 0;
 
 	int rc = getcontext(&ucp);
-	printf("getcontext %d\n", rc);
-	printf("eip:%lx fs:%lx gs:%lx\n",
-	ucp.uc_mcontext.gregs[EIP],
-	ucp.uc_mcontext.gregs[FS],
-	ucp.uc_mcontext.gregs[GS]
-	);
 	if (done) {
 		rc = getcontext(&ucp);
-		fprintf(stderr, "done setcontext getcontext %d\n", rc);
-		fprintf(stderr, "eip:%lx fs:%lx gs:%lx\n",
-		ucp.uc_mcontext.gregs[EIP],
-		ucp.uc_mcontext.gregs[FS],
-		ucp.uc_mcontext.gregs[GS]
-		);
 		return;
 	}
 
@@ -99,20 +75,8 @@ void resetcs(void)
 	int done = 0;
 
 	int rc = getcontext(&ucp);
-	printf("getcontext %d\n", rc);
-	printf("eip:%lx fs:%lx cs:%lx\n",
-	ucp.uc_mcontext.gregs[EIP],
-	ucp.uc_mcontext.gregs[FS],
-	ucp.uc_mcontext.gregs[CS]
-	);
 	if (done) {
 		rc = getcontext(&ucp);
-		fprintf(stderr, "done setcontext getcontext %d\n", rc);
-		fprintf(stderr, "eip:%lx fs:%lx cs:%lx\n",
-		ucp.uc_mcontext.gregs[EIP],
-		ucp.uc_mcontext.gregs[FS],
-		ucp.uc_mcontext.gregs[CS]
-		);
 		return;
 	}
 
@@ -127,20 +91,8 @@ void resetds(void)
 	int done = 0;
 
 	int rc = getcontext(&ucp);
-	printf("getcontext %d\n", rc);
-	printf("eip:%lx ds:%lx gs:%lx\n",
-	ucp.uc_mcontext.gregs[EIP],
-	ucp.uc_mcontext.gregs[DS],
-	ucp.uc_mcontext.gregs[GS]
-	);
 	if (done) {
 		rc = getcontext(&ucp);
-		fprintf(stderr, "done setcontext getcontext %d\n", rc);
-		fprintf(stderr, "eip:%lx ds:%lx gs:%lx\n",
-		ucp.uc_mcontext.gregs[EIP],
-		ucp.uc_mcontext.gregs[DS],
-		ucp.uc_mcontext.gregs[GS]
-		);
 		return;
 	}
 
@@ -155,20 +107,8 @@ void resetes(void)
 	int done = 0;
 
 	int rc = getcontext(&ucp);
-	printf("getcontext %d\n", rc);
-	printf("eip:%lx es:%lx gs:%lx\n",
-	ucp.uc_mcontext.gregs[EIP],
-	ucp.uc_mcontext.gregs[ES],
-	ucp.uc_mcontext.gregs[GS]
-	);
 	if (done) {
 		rc = getcontext(&ucp);
-		fprintf(stderr, "done setcontext getcontext %d\n", rc);
-		fprintf(stderr, "eip:%lx es:%lx gs:%lx\n",
-		ucp.uc_mcontext.gregs[EIP],
-		ucp.uc_mcontext.gregs[ES],
-		ucp.uc_mcontext.gregs[GS]
-		);
 		return;
 	}
 
@@ -184,20 +124,8 @@ void resetss(void)
 	int done = 0;
 
 	int rc = getcontext(&ucp);
-	printf("getcontext %d\n", rc);
-	printf("eip:%lx fs:%lx ss:%lx\n",
-	ucp.uc_mcontext.gregs[EIP],
-	ucp.uc_mcontext.gregs[FS],
-	ucp.uc_mcontext.gregs[SS]
-	);
 	if (done) {
 		rc = getcontext(&ucp);
-		fprintf(stderr, "done setcontext getcontext %d\n", rc);
-		fprintf(stderr, "eip:%lx fs:%lx ss:%lx\n",
-		ucp.uc_mcontext.gregs[EIP],
-		ucp.uc_mcontext.gregs[FS],
-		ucp.uc_mcontext.gregs[SS]
-		);
 		return;
 	}
 
@@ -228,7 +156,7 @@ int main(int argc, char *argv[])
 	if (argc > 1)
 		seg = atoi(argv[1]);
 
-	for (;seg < 65536; seg++ ) {
+	for (;(unsigned int)seg < 8194; seg++ ) {
 		printf("seg = %u\n", seg);
 #if 1
 	if (argc > 1) fprintf(stderr, "resetfs\n");
