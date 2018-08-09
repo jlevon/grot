@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -x
+
+export com1=/tmp/socket1
+export com2=/tmp/socket2
+export vnic=bhyve.net0
+export iso=/zones/jlevon/smartos.iso
+export disk=/dev/zvol/rdsk/zones/bhyve-zvol
+export uuid=d96824b4-816b-cec4-baf0-8176ed830152
+export name=smartos
+
+zfs create -V 16g zones/bhyve-zvol
+dladm create-vnic -l ixgbe1 -v 3315 $vnic
+
+bhyvectl --destroy --vm $name
+bhyve -H -B "1,manufacturer=Joyent,product=SmartDC HVM,version=7.20180329T120303Z,serial=$uuid,sku=001,family=Virtual Machine" -l com1,socket,$com1 -l com2,socket,$com2     -l bootrom,/usr/share/bhyve/uefi-csm-rom.bin     -c 2 -m 8G     -s 1,lpc     -s 3,ahci-cd,$iso     -s 4,virtio-blk,$disk     -s 5,virtio-net-viona,$vnic -U $uuid $name

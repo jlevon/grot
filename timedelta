@@ -1,0 +1,12 @@
+#!/usr/bin/awk -f
+
+BEGIN {
+	prev = 0;
+	FS=":"
+}
+
+{
+	cur=$1 - prev;
+	prev=$1
+	print cur ":" $0
+}
