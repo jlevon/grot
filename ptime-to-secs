@@ -1,6 +1,7 @@
 #!/bin/bash
 
 while read ln; do
+	echo $ln | grep '[0-9]m[0-9]*\.[0-9]*s' >/dev/null || { echo $ln ; continue ; }
 	line=$(echo $ln | sed 's+\(.*\)\([0-9]m[0-9]*\.[0-9]*s\)\(.*\)$+\1FOO\3+')
 	i=$(echo $ln | sed 's+\(.*\)\([0-9]m[0-9]*\.[0-9]*s\)\(.*\)$+\2+')
 	min=$(echo $i | sed 's/m.*//')
