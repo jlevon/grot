@@ -1,5 +1,6 @@
 #!/bin/bash
 
 for i in $(seq 0 $(($(nproc) - 1)) ); do
+	echo "CPU$i"
 	taskset -c $i date
 done
