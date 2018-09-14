@@ -1,0 +1,5 @@
+#!/bin/bash
+
+for i in "$@"; do
+	ffmpeg -y -i "$i" "$i".mp3
+done
