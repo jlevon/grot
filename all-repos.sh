@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for repo in . projects/illumos-joyent projects/illumos-extra projects/local/* ;
+for repo in . projects/illumos projects/illumos-extra projects/local/* ;
 do
 	(cd $repo && echo $repo && "$@")
 done
