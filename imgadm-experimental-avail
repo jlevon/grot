@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# e.g. imgadm-experimental-avail jenkins
+
+curl -s "https://updates.joyent.com/images?channel=experimental&name=~$1" | json -a name uuid type os
