@@ -8,5 +8,4 @@ cd /var/tmp/$me.$$
 curl -k -o image.manifest "https://updates.joyent.com/images/$1?channel=experimental"
 curl -k -o image.img "https://updates.joyent.com/images/$1/file?channel=experimental"
 imgadm install -m image.manifest -f image.img
-#rm image.manifest image.img
-echo $1
+rm image.manifest image.img
