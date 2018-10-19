@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -e
+
+# usage blat-url url dirname
+
+[[ -n "$1" ]] || exit 2
+[[ -n "$2" ]] || exit 2
+
+curl -k -o /zones/jlevon/p.tgz $1
+mount -F pcfs /dev/dsk/c1t0d0p1 /mnt || true
+cd /mnt/os/jlevon/$2 && rm -rf platform && tar zxvf $tgz && mv platform* platform && rm $tgz
