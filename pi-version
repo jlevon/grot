@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# given a platform TGZ, dump out the /etc/release within. Sigh.
+
+tgz=$1
+
+mkdir /tmp/tmp.$$
+cd /tmp/tmp.$$
+tar xzf $tgz
+mkdir mnt
+mount -F ufs platform*/i86pc/amd64/boot_archive mnt/
+cat mnt/etc/release
+umount mnt/
+cd /
+rm -rf /tmp/tmp.$$
