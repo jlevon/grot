@@ -7,3 +7,5 @@ set -e
 mount -F pcfs -o foldcase /dev/dsk/c1t0d0p1 /mnt || true
 awk "/^default/ { print \"default \" \"$1\" ; next } 7" </mnt/boot/grub/menu.lst >/tmp/tmp.$$
 mv /tmp/tmp.$$ /mnt/boot/grub/menu.lst
+
+awk "/^title/ { if (count++ == $1) { print \"chosen \" \$0 } }" </mnt/boot/grub/menu.lst
