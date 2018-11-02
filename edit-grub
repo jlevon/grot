@@ -1,0 +1,4 @@
+#!/bin/bash
+
+mount -F pcfs -o foldcase /dev/dsk/c1t0d0p1 /mnt || true
+vim /mnt/boot/grub/menu.lst
