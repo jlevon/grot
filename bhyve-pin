@@ -1,0 +1,38 @@
+#!/bin/bash
+
+vm=$1
+socket=$2
+
+[ -n "$vm" ] || { echo "missing vm arg" >&2 ; exit 1 ; }
+[ -n "$socket" ] || { echo "missing socket arg" >&2 ; exit 1 ; }
+
+#set -x
+set errexit
+
+pid=$(pgrep -z $vm bhyve)
+
+if [ $socket -eq 1 ]; then
+	cpus=$(psrinfo -pv | grep 'physical processor' | head -1 | sed 's+.*(++;s+)++')
+else
+	cpus=$(psrinfo -pv | grep 'physical processor' | tail -1 | sed 's+.*(++;s+)++')
+fi
+
+set -- $cpus
+
+for thread in $(mdb -ke "0t$pid::pid2proc | ::walk thread | \
+    ::print -d kthread_t t_tid t_name" | paste -d" " - - | \
+    sed 's+t_tid = 0*t*++;s+ t_name.* "+,+;s+\"++;s+ ++;'); do
+	tid=$(echo $thread | cut -d, -f1)
+	name=$(echo $thread | cut -d, -f2)
+
+	if echo $name | grep 'vcpu' >/dev/null; then
+		echo "binding $name:$tid to CPU$1"
+		#pbind -b $1 $pid/$tid
+		shift
+	elif echo $name | grep '^viona_tx' >/dev/null; then
+		echo "binding $name:$tid to CPU$1"
+		#pbind -b $1 $pid/$tid
+		shift
+	fi
+done
+

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# eval $(./vm-vars)
+
+for alias in $(vmadm list -Ho alias); do
+	if [[ "$alias" != "-" ]]; then
+		echo "export $alias=$(vmadm list -Ho uuid alias=$alias)"
+	fi
+done
+
