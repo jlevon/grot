@@ -1,0 +1,7 @@
+#!/bin/bash
+
+JOB_NAME=$1
+
+token=$(cat ~/.jenkinstoken)
+
+curl -u "john.levon:$token" -O "https://jenkins.joyent.us/job/${JOB_NAME}/lastBuild/consoleText"
