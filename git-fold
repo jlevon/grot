@@ -7,5 +7,5 @@ git commit -m tmp.$$
 git reset --soft HEAD~2
 
 echo "Folding into:"
-git log --format=%B HEAD@{3}..HEAD@{2}
-git commit -m "$(git log --format=%B HEAD@{3}..HEAD@{2})"
+git log --format=%B HEAD@{2}^..HEAD@{2}
+git commit -m "$(git log --format=%B HEAD@{2}^..HEAD@{2})"
