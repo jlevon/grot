@@ -1,0 +1,14 @@
+[user]
+	email = john.levon@joyent.com
+	name = John Levon
+
+[alias]
+	staged = diff --cached
+	ustatus = status -uno
+	readd = add -u
+	export = format-patch --stdout -1
+	unmerged = diff --name-only --diff-filter=U
+[merge]
+	conflictstyle = diff3
+[push]
+	default = upstream
