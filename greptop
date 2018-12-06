@@ -1,0 +1,5 @@
+#!/bin/bash
+
+pids=$(pgrep "$@")
+
+top -p $(echo $pids | sed 's/ /,/g')
