@@ -1,0 +1,4 @@
+#!/bin/bash
+
+#git remote add -f jlevon git@github.com:jlevon/illumos-gate.git
+git remote add -f $1 $2
