@@ -4,8 +4,11 @@
 
 git add -u
 git commit -m tmp.$$
-git reset --soft HEAD~2
+
+rev=$(git rev-parse HEAD^)
 
 echo "Folding into:"
-git log --format=%B HEAD@{2}^..HEAD@{2}
-git commit -m "$(git log --format=%B HEAD@{2}^..HEAD@{2})"
+git log --format=%B HEAD^^..HEAD^
+
+git reset --soft HEAD^^
+git commit -C $rev
