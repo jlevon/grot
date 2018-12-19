@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# new issue on redmine using npm redmine-cli
+
+userid=5222 # jlevon
+project=5 # illumos-gate
+title=$1
+shift
+#set -x
+a=$(redmine create-issue -a $userid -d "$@" 5 "$title")
+echo $(echo $a | sed 's+.*#++') $title
