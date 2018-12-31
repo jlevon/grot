@@ -1,5 +1,5 @@
 #!/bin/bash
 
-repo=$(basename `git rev-parse --show-toplevel`)
+repo=$(basename $(git remote get-url origin))
 
-git remote add cr johnlevon@cr.joyent.us:joyent/$repo.git
+git remote add cr johnlevon@cr.joyent.us:joyent/$repo
