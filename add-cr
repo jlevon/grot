@@ -1,0 +1,5 @@
+#!/bin/bash
+
+repo=$(basename `git rev-parse --show-toplevel`)
+
+git remote add cr johnlevon@cr.joyent.us:joyent/$repo.git
