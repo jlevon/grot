@@ -1,7 +1,12 @@
 #!/bin/bash
 
+#
+# Copy this file and jlevon.ml to /opt/custom/smf
+# then svcadm restart manifest-import
+#
+
 set -e
-set -x 
+set -x
 
 mkdir -m 700 -p /root/.ssh/ || true
 
