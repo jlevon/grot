@@ -309,9 +309,9 @@ fbt::page_reclaim_mem:entry /self->spec/
 fbt::page_needfree:entry /self->spec && self->reclaim_iter/
 {
 	speculate(self->spec);
-	printf("T%u:pid%dt%d %s(%u); `needfree = %u, total now %u\n",
+	printf("T%u:pid%dt%d %s(%u); `needfree = %u (+ %u), `availrmem = %u\n",
 		timestamp - start, pid, tid, probefunc,
-		args[0], `needfree, `needfree + args[0]
+		args[0], `needfree, `needfree + args[0], `availrmem
 		);
 	self->reclaim_iter++;
 }
