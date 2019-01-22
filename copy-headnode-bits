@@ -2,6 +2,8 @@
 
 set -x
 
+set -e
+
 cd output/
 cp boot*.tgz ~/src/sdc-headnode/cache/file.platboot.tgz
 cp platform-latest.tgz ~/src/sdc-headnode/cache/file.platform.tgz
