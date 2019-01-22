@@ -1,0 +1,88 @@
+#!ipxe
+
+:top
+
+#
+# Allow operator to break out into a shell:
+#
+prompt --key 0x02 --timeout 2000 \
+  Press Ctrl-B for the iPXE command line... \
+  && shell ||
+
+set whichhost default
+set serverip 172.26.5.207
+
+set console ttyb
+
+#
+# Select the platform name.  The first column (e.g. "plat") is the choice name,
+# which will become part of the URL; the rest of the line is a descriptive name
+# that will appear on the screen.
+#
+menu jlevon-${serverip} SELECT A PLATFORM
+item jlevon-uefi	jlevon-uefi (RFD 156)
+item smartos-uefi	smartos-uefi (RFD 156)
+#item smartos-ipmi-dev	smartos-ipmi-dev (UFM changes)
+#item smartos-ipmi-full	smartos-ipmi-full (UFM changes)
+#item smartos-misc1	smartos-misc1 (ipmi lancfg changes)
+#item smartos-misc2	smartos-misc2 (OS-7158)
+#item smartos-hwgrok	smartos-hwgrok
+#item stock-nondebug	Stock SmartOS image (non-debug)
+#item stock-debug	Stock SmartOS image (debug)
+item 
+choose --default ${whichhost} platname || goto top
+
+menu EXTRA KERNEL OPTIONS?
+item kd			-kd
+item kv			-kv
+item k			-k
+item milestone		milestone=none
+item none		none
+choose --default none kmdb_flags_choice || goto top
+iseq ${kmdb_flags_choice} kd && set kmdb_flags -kd ||
+iseq ${kmdb_flags_choice} k && set kmdb_flags -k ||
+iseq ${kmdb_flags_choice} kv && set kmdb_flags -kv ||
+iseq ${kmdb_flags_choice} milestone && set kmdb_flags -m milestone=none ||
+
+#
+# The URL of the platform to boot is composed of the HTTP Server IP and the
+# boot choice name from the platform selection menu (above).  Note that this
+# URL does _not_ include the "platform" directory, which must be a
+# sub-directory of this one.
+#
+set baseurl http://${serverip}/ipxe/${platname}
+
+#
+# Boot the machine:
+#
+kernel \
+  --name /platform/i86pc/kernel/amd64/unix \
+  ${baseurl}/platform/i86pc/kernel/amd64/unix \
+  -B root_shadow=$5$hEQ0l8d5$s0Jwt.oif76hVoQpzsgH2XVKhS8uCXnMlQhXltYgvaB \
+  -B console=${console},${console}-mode="115200,8,n,1,-" \
+  -B kbm_debug=true,prom_debug=true \
+  -B headnode=true \
+  ${kmdb_flags} || goto fail
+
+module \
+  --name /platform/i86pc/amd64/boot_archive \
+  ${baseurl}/platform/i86pc/amd64/boot_archive \
+  type=rootfs name=ramdisk || goto fail
+
+module \
+  --name /platform/i86pc/amd64/boot_archive.hash \
+  ${baseurl}/platform/i86pc/amd64/boot_archive.hash \
+  type=hash name=ramdisk || goto fail
+
+boot || goto fail
+
+#
+# Give a ten second pause, during which the operator can break out into a
+# shell, and then try again from the top.
+#
+:fail
+prompt --key 0x02 --timeout 10000 \
+  Boot Failed; Press Ctrl-B for the iPXE command line... \
+  && shell || goto top
+
+goto top

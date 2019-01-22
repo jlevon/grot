@@ -1,0 +1,5 @@
+#!/bin/bash
+
+for u in $(vmadm list -Ho uuid ); do
+	vmadm get $u | json alias uuid nics[0].ip
+done
