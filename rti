@@ -7,6 +7,7 @@ shift
 to=advocates@lists.illumos.org
 
 bugid=$(git log --format=%B -1 $rev | head -1)
-git format-patch --stdout -1 $rev >$rev.patch
+patchname=$(echo $bugid | sed 's+ +-+g')
+git format-patch --stdout -1 $rev >$patchname.patch
 
-echo $* | cat ~/src/grot/advocates-mail.txt - | mutt -s "[PATCH] $bugid" -a $rev.patch -- $to
+echo $* | cat ~/src/grot/advocates-mail.txt - | mutt -s "[PATCH] $bugid" -a $patchname.patch -- $to
