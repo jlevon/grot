@@ -1,0 +1,23 @@
+#!/bin/bash
+
+url="$1"
+
+readonly LOG_FILE="/var/tmp/download.log"
+touch $LOG_FILE
+exec 1>>$LOG_FILE
+exec 2>&1
+
+#set -x
+
+echo "Asked to download $1"
+
+if grep "$1" ~/.downloaded >/dev/null; then
+	echo "Skipping $1"
+	exit 0
+fi
+
+echo "$1" >>~/.downloaded
+
+cd /home/jlevon/Dropbox/podcasts/incoming/
+
+curl -RksSLJO "$1" 
