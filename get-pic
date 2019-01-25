@@ -31,5 +31,5 @@ for g in $GENRES; do
 done
 
 sort -u -o playlist.m3u playlist.m3u
-LD_PRELOAD=~/src/audacious/src/libaudcore/libaudcore.so ~/src/audacious/src/audacious/audacious playlist.m3u
+LD_LIBRARY_PATH=/usr/local/lib /usr/local/bin/audacious playlist.m3u &
 exit 0

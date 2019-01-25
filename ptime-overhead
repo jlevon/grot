@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./overhead $(./ptime-to-secs $1) $(./ptime-to-secs $2)
+./overhead $(echo $1 | ./ptime-to-secs) $(echo $2 | ./ptime-to-secs)
