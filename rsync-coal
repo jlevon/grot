@@ -1,0 +1,5 @@
+#!/bin/bash
+
+last=$(ssh gk@$m ls -drt src/sdc-headnode/coal-*.vmwarevm/ | tail -1)
+
+rsync -avz gk@$m:$last* coal/

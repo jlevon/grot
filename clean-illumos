@@ -2,4 +2,4 @@
 
 cd $CODEMGR_WS
 
-git clean -fdx -e closed -e ctags -e illumos.sh -e bldenv -e nightly -e log/
+git clean -fdx -e closed -e tags -e illumos.sh -e bldenv -e nightly -e log/

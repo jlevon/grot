@@ -1,0 +1,13 @@
+#!/bin/bash
+
+rev=$1
+shift
+
+#to=levon@movementarian.org
+to=advocates@lists.illumos.org
+
+bugid=$(git log --format=%B -1 $rev | head -1)
+patchname=$(echo $bugid | sed 's+ +-+g')
+git format-patch --stdout -1 $rev >$patchname.patch
+
+echo $* | cat ~/src/grot/advocates-mail.txt - | mutt -s "[PATCH] $bugid" -a $patchname.patch -- $to
