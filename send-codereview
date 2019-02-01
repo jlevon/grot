@@ -3,7 +3,7 @@
 rev=$1
 shift
 
-#to=levon@movementarian.org
+to=levon@movementarian.org
 to=developer@lists.illumos.org
 
 bugid=$(git log --format=%B -1 $rev | head -1)
