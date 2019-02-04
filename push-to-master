@@ -76,4 +76,4 @@ git show --pretty=fuller origin/master..HEAD
 
 echo
 echo "----> If you're happy:"
-echo "git push -n origin/master"
+echo "git push -n origin HEAD:master"
