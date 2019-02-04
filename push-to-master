@@ -1,0 +1,79 @@
+#!/bin/bash
+
+function yesno() {
+	echo >&2
+	echo "----> $* (yes/no) ?" >&2
+	read input
+	if [ "$input" != "yes" ]; then
+		echo "Aborting" >&2
+		exit 1
+	fi
+}
+
+diff_files="$(git diff --name-only)"
+
+if [ -n "$diff_files" ]; then
+	echo "----> Aborting: the following files are changed in the index:" >&2
+	echo "$diff_files" >&2
+	exit 1
+fi
+	
+staged_files="$(git diff --name-only --cached)"
+
+if [ -n "$staged_files" ]; then
+	echo "----> Aborting: the following files have staged changes:" >&2
+	echo "$staged_files" >&2
+	exit 1
+fi
+
+revs=$(git log --format=%H origin/master..HEAD)
+
+if [ -z "$revs" ]; then
+	echo "----> Aborting: nothing outgoing to origin/master" >&2
+	exit 1
+fi
+
+git fetch origin
+
+if [ -n "$(git log --format=%H HEAD..origin/master)" ]; then
+	echo "----> Aborting: incoming changes from origin/master" >&2
+	exit 1
+fi
+	
+if [ $(echo $revs | wc -w) != 1 ]; then
+	echo "----> Multiple changesets outgoing" >&2
+	git log origin/master..HEAD >&2
+	yesno "push all changesets"
+fi
+
+for rev in $revs; do
+	msg=$(git log --format=%B $rev^..$rev)
+	echo "$msg" | grep '^Reviewed by:' >/dev/null || {
+		echo "----> Aborting: missing 'Reviewed by' for $rev:" >&2
+		echo "$msg"
+		exit 1
+	}
+
+	echo "$msg" | grep '^Approved by:' >/dev/null || {
+		echo "----> Aborting: missing 'Approved by' for $rev:" >&2
+		echo "$msg"
+		exit 1
+	}
+done
+
+pbchk=$(git pbchk -p origin/master)
+
+if [ -n "$pbchk" ]; then
+	echo "----> pbchk is not empty:" >&2
+	echo "$pbchk" >&2
+	yesno "push anyway"
+fi
+
+
+echo "----> Changes to push:"
+
+git show --pretty=fuller origin/master..HEAD
+
+echo
+echo "----> If you're happy:"
+echo "git push -n origin/master"
