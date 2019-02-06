@@ -1,5 +1,9 @@
 #!/bin/bash
 
+export PATH=$(git rev-parse --show-toplevel)/usr/src/tools/proto/root_$(uname -p)-nd/opt/onbld/bin/:$PATH
+
+set -e
+
 function yesno() {
 	echo >&2
 	echo "----> $* (yes/no) ?" >&2
