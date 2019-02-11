@@ -9,12 +9,12 @@ exec 2>&1
 
 #set -x
 
-echo "Asked to download $1"
-
 if grep "$1" ~/.downloaded >/dev/null; then
-	echo "Skipping $1"
+	echo "$(date): skipping $1"
 	exit 0
 fi
+
+echo "$(date): downloading $1"
 
 echo "$1" >>~/.downloaded
 
