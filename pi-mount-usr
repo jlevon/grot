@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# given a platform TGZ, mount its /usr.
+
+set -e
+
+tgz=$(realpath $1)
+
+mkdir /tmp/tmp.$$
+cd /tmp/tmp.$$
+tar xzf $tgz
+mkdir mnt
+pfexec mount -F ufs platform*/i86pc/amd64/boot_archive mnt/
+pfexec cp mnt/usr.lgz usr.lgz
+pfexec umount ./mnt
+dev=$(pfexec lofiadm -X -a ./usr.lgz)
+pfexec mount -F ufs -o ro $dev mnt/
+echo /tmp/tmp.$$/mnt/

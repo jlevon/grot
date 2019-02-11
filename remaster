@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# reset files to master branch version
+
+for i in "$@"; do
+	git checkout master -- "$i"
+	git add "$i"
+done
