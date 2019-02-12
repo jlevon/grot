@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# FIXME: won't work for aggregeations, see
+# https://docs.joyent.com/private-cloud/troubleshooting/reset
+
+uuid=$1
+
+set -e
+set -x
+
+[ -n "$uuid" ] || exit 1
+
+
+macs=$(sdc-napi /nics | json -Ha belongs_to_uuid mac | awk "\"$uuid\" == \$1 { print \$2 }")
+echo "Yes" | sdc-server delete $uuid
+
+for mac in $macs; do
+	sdc-napi /nics/$mac -X DELETE
+done
+
+echo "Now sdc-factoryreset on the CN"
