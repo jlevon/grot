@@ -3,8 +3,11 @@
 rev=$1
 shift
 
+set -x
+set -e
+
 to=levon@movementarian.org
-to=developer@lists.illumos.org
+#to=developer@lists.illumos.org
 
 bugid=$(git log --format=%B -1 $rev | head -1)
 #git format-patch --stdout -1 $rev >$rev.patch

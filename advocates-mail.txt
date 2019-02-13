@@ -1,8 +1,5 @@
 
-Clean mail_msg (built with the rest of the smatch queue).
-No new pbchk noise.
+https://github.com/jlevon/illumos-jlevon/commits/rti
 
-These changes were tested in concert by Rob Johnston:
-
-https://gist.github.com/jlevon/6cc1d71d4d551ff981f3ab11cc386187
+OK to push?
 

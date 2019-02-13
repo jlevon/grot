@@ -1,0 +1,22 @@
+#!/bin/bash
+
+export PATH=$(git rev-parse --show-toplevel)/usr/src/tools/proto/root_$(uname -p)-nd/opt/onbld/bin/:$PATH
+rev=$1
+
+cd $(git rev-parse --show-toplevel)
+
+set -x
+set -e
+
+git checkout rti
+git fetch origin
+git reset --hard origin/master
+git cherry-pick $rev
+
+bug=$(git log --format=%B -1 $rev | head -1)
+bugid=$(echo $bug | awk '{print $1}')
+patchname=$(echo $bug | sed 's+ +-+g;s+/+-+g;')
+git format-patch --stdout -1 $rev >$patchname.patch
+git pbchk -p origin/master >$bugid.pbchk
+./nightly ./illumos.sh
+cp  log/latest/mail_msg $bugid.mail_msg

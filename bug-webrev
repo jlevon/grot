@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Given a commit, build and upload a webrev based upon the commit's bug ID.
+
+set -e
+#set -x
+
+rev=$1
+
+
+bugid=$(git log --format=%B -1  $rev | head -1 | awk '{print $1}')
+
+rm -rf $SRC/../../webrev
+
+webrev -c $rev -t rsync://webrev@cr.illumos.org:$bugid -U

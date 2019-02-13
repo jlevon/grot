@@ -5,11 +5,30 @@ set -e
 rev=$1
 shift
 
-#to=levon@movementarian.org
+to=levon@movementarian.org
 to=advocates@lists.illumos.org
 
-bugid=$(git log --format=%B -1 $rev | head -1)
-patchname=$(echo $bugid | sed 's+ +-+g;s+/+-+g;')
+bug=$(git log --format=%B -1 $rev | head -1)
+patchname=$(echo $bug | sed 's+ +-+g;s+/+-+g;')
 git format-patch --stdout -1 $rev >$patchname.patch
 
-echo $* | cat ~/src/grot/advocates-mail.txt - | mutt -s "[PATCH] $bugid" -a $patchname.patch -- $to
+args="-a $patchname.patch"
+
+bugid=$(echo $bug | awk '{print $1}')
+
+[ -f $bugid.mail_msg ] || {
+	echo "missing $bugid.mail_msg" >&2
+	exit 1
+}
+
+args="$args $bugid.mail_msg"
+
+[ -f $bugid.pbchk ] || {
+	echo "missing $bugid.pbchk" >&2
+	exit 1
+}
+
+args="$args $bugid.pbchk"
+
+
+echo $* | cat ~/src/grot/advocates-mail.txt - | mutt -s "[PATCH] $bug" $args -- $to
