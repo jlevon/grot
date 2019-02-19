@@ -1,0 +1,12 @@
+#!/bin/bash
+
+speaker_out=alsa_output.pci-0000_00_1f.3.analog-stereo
+headset_out=alsa_output.usb-0b0e_Jabra_Link_370_745C4BEB6B40-00.analog-stereo
+headset_in=alsa_input.usb-0b0e_Jabra_Link_370_745C4BEB6B40-00.analog-mono
+# FIXME: usb card
+
+if test $1 == "on"; then
+	pactl set-default-sink $headset_out
+else
+	pactl set-default-sink $speaker_out
+fi
