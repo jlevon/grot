@@ -2,4 +2,4 @@
 
 # The hidden way to mount a USB under Ubuntu...
 
-gio mount -d /dev/sdb
+gio mount -d /dev/sdb1
