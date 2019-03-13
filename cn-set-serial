@@ -1,0 +1,9 @@
+#!/bin/bash
+
+uuid=$1
+tty=$2
+
+sdc-cnapi --no-headers /boot/$uuid -X POST -d "{ \"serial\": \"$2\" }"
+sdc-cnapi --no-headers /boot/$uuid -X POST -d "{ \"default_console\": \"serial\" }"
+
+sdc-cnapi --no-headers /boot/$uuid | json default_console serial
