@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# TKIOF-EP173-HIGHWAY_TO_HULL.mp3?dest-id=219596 -> TKIOF-EP173-HIGHWAY_TO_HULL.mp3
+
+for file in "$@"; do
+	mv "${file}" "${file%\?*}"
+done
