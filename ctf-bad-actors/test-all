@@ -1,0 +1,16 @@
+#!/bin/bash
+
+export LD_PRELOAD=/lib/libumem.so
+export UMEM_DEBUG=default
+
+mkdir testdir
+for f in $(gfind /opt/local -type f -executable); do
+	echo $f | tee -a out.test-all
+	[[ "$(basename $f)" = "gcov" ]] && continue
+	[[ "$(basename $f)" = "libstdc++.so.6.0.20" ]] && continue
+	[[ "$(basename $f)" = "libcilkrts.so.5.0.0" ]] && continue
+	[[ "$(basename $f)" = "f951" ]] && continue
+	[[ "$(basename $f)" = "go1" ]] && continue
+	cp -f $f testdir/$(basename $f)
+	timeout 120 ctfconvert -k testdir/$(basename $f) | tee -a out.test-all
+done

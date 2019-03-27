@@ -34,6 +34,6 @@ ifopen ${vlan}
 
 sleep 2
 
-chain http://172.26.5.207/script.ipxe ||
-echo JLEVON failed to chain script.ipxe
+chain http://172.26.5.207/ipxe-script ||
+echo JLEVON failed to chain ipxe-script
 shell
