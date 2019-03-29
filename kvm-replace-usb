@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# replace USB disk in my smartos VM
+
+dom=smartos
+path=$(realpath $1)
+
+cat >/tmp/dev.xml <<EOF
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='raw'/>
+      <source file='$path'/>
+      <target dev='sda' bus='usb'/>
+      <boot order='1'/>
+      <address type='usb' bus='0' port='3'/>
+    </disk>
+EOF
+
+cat /tmp/dev.xml
+
+virsh update-device $dom /tmp/dev.xml
+
