@@ -2,5 +2,5 @@
 
 for repo in . projects/illumos projects/illumos-extra projects/local/* ;
 do
-	(cd $repo && echo $repo && "$@")
+	(cd $repo && echo " -------- $repo --------- " && "$@")
 done

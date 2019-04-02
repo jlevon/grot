@@ -1,12 +1,24 @@
 #!/bin/bash
 
 set -x
-
 set -e
 
+dest=~/src/master-headnode/cache/
+
+function docopy() {
+	file=$1
+	link=$2
+
+	rm -f $dest/$link
+	cp $file $dest/
+	(cd $dest && ln -s $file $link)
+
+}
+
 cd output/
-cp boot*.tgz ~/src/sdc-headnode/cache/file.platboot.tgz
-cp platform-latest.tgz ~/src/sdc-headnode/cache/file.platform.tgz
-cp images*.tgz ~/src/sdc-headnode/cache/file.platimages.tgz
+
+docopy boot*.tgz file.platboot.tgz
+docopy $(readlink platform-latest.tgz) file.platform.tgz
+docopy images*.tgz file.platimages.tgz
 
 echo export NO_DOWNLOAD=1

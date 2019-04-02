@@ -10,8 +10,13 @@ set -x
 
 [ -n "$uuid" ] || exit 1
 
+#macs=$(sdc-napi /nics | json -Ha belongs_to_uuid mac | awk "\"$uuid\" == \$1 { print \$2 }")
 
-macs=$(sdc-napi /nics | json -Ha belongs_to_uuid mac | awk "\"$uuid\" == \$1 { print \$2 }")
+# json defeated me for pulling this out. It's better than the above as it won't
+# leave lingering entries that screw everything up.
+#
+macs=$(sdc-cnapi --no-headers /servers/$uuid | json sysinfo."Network Interfaces" | grep "MAC Address" | sed 's+.*MAC Address": "++;s+".*$++')
+
 echo "Yes" | sdc-server delete $uuid
 
 for mac in $macs; do
