@@ -6,7 +6,8 @@
 # Report if we find an ISM segment such that if we were to restart the postgres
 # instance, it might not be able to allocate it again.
 #
-# Needs to run on the global zone.
+# Needs to run on the global zone as root/pfexec. Should be harmless to run this if no
+# arguments are provided.
 #
 # If invoked as "./manatee-381.sh apply-workaround" we will try to scale
 # segspt_minfree down in the hope that the subsequent shmat() works.
@@ -59,6 +60,8 @@ if [[ "$1" != "apply-workaround" ]]; then
 	exit 1
 fi
 
+echo "Checking before applying workaround..."
+
 # 16 Gb
 if [[ $mem_pages -lt 4194304 ]]; then
 	echo "Low total mem: not doing anything" >&2
@@ -79,7 +82,7 @@ if [[ "$ans" != "yes" ]]; then
 	exit 1
 fi
 
-mdb -ke "segspt_minfree/z 0t262144"
+mdb -kwe "segspt_minfree/z 0t262144"
 
 echo "done"
 
