@@ -30,6 +30,7 @@ times = {
 bytes = {
         "bit": ( 1024 * 8, "bits" ),
         "b": ( 1024, "bytes" ),
+	"P": ( 128, "64-bit pointers" ),
         "B": ( 2, "blocks" ),
         "Kb": ( 1, "kilobytes" ),
         "p": ( 0.25, "(4K) pages" ),

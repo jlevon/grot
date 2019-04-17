@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -x
+
+set -e
+
+# pass in e.g. /Joyent_Dev/public/builds/platform-debug/gcc-update-20190307T112510Z/platform-debug
+cd cache/
+
+mp=$1
+for file in $(mls $1/); do
+	if echo $file | grep "^boot-" >/dev/null; then
+		mget -O $1/$file
+		rm file.platboot.tgz
+		ln -s $file file.platboot.tgz
+	fi
+	if echo $file | grep "^images-" >/dev/null; then
+		mget -O $1/$file
+		rm file.platimages.tgz
+		ln -s $file file.platimages.tgz
+	fi
+	if echo $file | grep "^platform-" >/dev/null; then
+		mget -O $1/$file
+		rm file.platform.tgz
+		ln -s $file file.platform.tgz
+	fi
+done
+
+echo export NO_DOWNLOAD=1

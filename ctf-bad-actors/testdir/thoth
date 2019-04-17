@@ -1,0 +1,3601 @@
+#!/usr/bin/env node
+
+/*
+ * Copyright 2016 Joyent, Inc.
+ */
+
+var mod_ctype = require('ctype');
+var mod_path = require('path');
+var mod_fs = require('fs');
+var util = require('util');
+var mod_crypto = require('crypto');
+var mod_bunyan = require('bunyan');
+var mod_manta = require('manta');
+var mod_zlib = require('zlib');
+var mod_child = require('child_process');
+var mod_r = require('rethinkdb');
+var mod_vm = require('vm');
+var mod_assert = require('assert');
+var mod_jsprim = require('jsprim');
+
+var mod_stream = require('stream');
+if (!mod_stream.Readable) {
+	/*
+	 * If we're on node 0.8, pull in streams2 explicitly.
+	 */
+	mod_stream = require('readable-stream');
+}
+
+var Readable = require('stream').Readable;
+var sprintf = require('sprintf').sprintf;
+var endsWith = mod_jsprim.endsWith;
+var ThothListStream = require('../lib/liststream').ThothListStream;
+var forEachStream = require('../lib/foreachstream');
+var batchStream = require('../lib/batchstream');
+var mapStream = require('../lib/mapstream');
+var jsondiff = require('../lib/jsondiff');
+
+var handlers = {};
+var autoanalyzers = {};
+
+var thoth = {
+	version: 1,
+	hashlen: 32,
+	path: '/' + (process.env.THOTH_USER ? process.env.THOTH_USER :
+	    process.env.MANTA_USER) + '/stor/thoth',
+	analyzers: 'analyzers',
+	index: 'index.json',
+	config: 'config.json',
+	unindexed: '-unindexed.json',
+	logs: 'logs',
+	log: 'log',
+	verbose: true,
+	asset: 'thoth.tar.gz',
+	db: {
+		host: 'localhost',
+		port: 28015,
+		db: '',
+		authKey: 'bagnoogle',
+		table: 'dumps'
+	},
+	indexed: {
+		name: true,
+		time: true,
+		type: true,
+		cmd: true,
+		node: true,
+		dump: true,
+		ticket: true
+	},
+	useindex: true,
+	analyzerdebug: false,
+	v8: '/Joyent_Dev/public/mdb_v8/latest',
+	cmds: [
+		{ token: 'init',
+		    usage: 'initialize/validate thoth' },
+		{ token: 'upload', params: '[file]',
+		    usage: 'upload the specified core or crash dump' },
+		{ token: 'info', params: '[dump]', disconnected: true,
+		    usage: 'print information about the specified dump(s)' },
+		{ token: 'ls', params: '[[dump]]', disconnected: true,
+		    usage: 'list dumps matching the specification' },
+		{ token: 'object', params: '[dump]',
+		    disconnected: true, unconfigured: true,
+		    usage: 'print object name for specified dump(s)' },
+		{ token: 'report', params: '[dump] [agg]', disconnected: true,
+		    usage: 'report on dumps matching the specification' },
+		{ token: 'set', params: '[dump] [prop] [[val]]',
+		    usage: 'set prop to val for the specified dump(s)' },
+		{ token: 'unset', params: '[dump] [prop]',
+		    usage: 'unset prop for the specified dump(s)' },
+		{ token: 'ticket', params: '[dump] [ticket]',
+		    usage: 'set ticket for the specified dump(s)' },
+		{ token: 'unticket', params: '[dump]',
+		    usage: 'unset ticket for the specified dump(s)' },
+		{ token: 'autoanalyzers', params: '[cmd]', disconnected: true,
+		    usage: 'perform operations on autoanalyzers' },
+		{ token: 'analyze', params: '[dump] [analyzer]',
+		    usage: 'analyze the specified dump(s)' },
+		{ token: 'analyzer', params: '[analyzer]',
+		    usage: 'add the named analyzer from stdin' },
+		{ token: 'analyzers',
+		    usage: 'list analyzers' },
+		{ token: 'debug', params: '[dump]',
+		    usage: 'debug the specified dump via mlogin and mdb' },
+		{ token: 'index',
+		    usage: 'generate (or regenerate) an index of all dumps' },
+		{ token: 'scrub',
+		    usage: 'check metadata for issues' },
+		{ token: 'logs',
+		    usage: 'list logs for the past hour' },
+		{ token: 'load', params: '[dump]', disconnected: true,
+		    usage: 'load metadata for the specified dump into cache' },
+	]
+};
+
+var status = function (msg)
+{
+	if (thoth.verbose)
+		console.error('thoth: ' + msg);
+}
+
+var warn = function (msg)
+{
+	console.error('thoth: ' + msg);
+}
+
+var fatal = function (msg, code)
+{
+	var i, c = mod_path.basename(process.argv[1]);
+
+	console.error(c + ': ' + msg);
+
+	process.exit(code ? code : 1);
+};
+
+var usage = function (msg)
+{
+	var i, c = mod_path.basename(process.argv[1]);
+
+	console.error(c + ': ' + msg);
+	console.error('Usage: ' + c + ' [command] [params]\n');
+
+	for (i = 0; i < thoth.cmds.length; i++) {
+		var cmd = thoth.cmds[i].token + (thoth.cmds[i].params ?
+		    (' ' + thoth.cmds[i].params) : '');
+
+		console.error(sprintf('  %-26s %s',
+		    cmd, thoth.cmds[i].usage));
+	}
+
+	process.exit(1);
+};
+
+var check = function (cmd, argv, usage)
+{
+	if (!cmd.params)
+		return;
+
+	var p = cmd.params.split(' ');
+
+	while (p.length > 0 && p[p.length - 1].indexOf('[[') == 0)
+		p.pop();
+
+	if (argv.length < p.length) {
+		var param = p[p.length - 1].split(/[\[\]]/)[1];
+
+		usage('missing ' + param + ' parameter');
+	}
+};
+
+var hms = function (ms)
+{
+	var seconds = Math.floor(ms / 1000);
+
+	return (Math.floor((seconds / 3600)) + 'h' +
+	    Math.floor(((seconds % 3600) / 60)) + 'm' +
+	    (seconds % 60) + 's');
+};
+
+var time2seconds = function (t)
+{
+	var n, suffix, suffixes = { min: 60, h: '60min', d: '24h', w: '7d',
+	    fortnight: '2w', month: '31d', m: 'month', y: '365d',
+	    minute: 'min', week: 'w', year: 'y' };
+
+	if (isNaN(n = parseInt(t, 10))) {
+		n = 1;
+		suffix = t;
+	} else {
+		if ((suffix = t.substr((n + '').length)) == '')
+			return (n);
+	}
+
+	if (!(s = suffixes[suffix]))
+		fatal('invalid time suffix \'' + suffix + '\'');
+
+	if (typeof (s) == 'number')
+		return (n * s);
+
+	return (n * time2seconds(s));
+};
+
+var parseAge = function (t)
+{
+	var now = Math.floor((new Date()).valueOf() / 1000);
+
+	return (now - time2seconds(t));
+};
+
+/*
+ * To determine if the specified file is a core file, we need to read the
+ * ELF headers and look at the type.  This routine will fail if it's not
+ * an ELF file or not an ELF core file.
+ */
+var isCore = function (fd, sum)
+{
+	var width, endianness, hdr;
+	var minsize = 8192, i;
+
+	var err = function (msg) {
+		if (thoth.crazyverbose)
+			warn('not an ELF file: ' + msg);
+	};
+
+	var int64 = function (val) {
+		if (!(val instanceof Array))
+			return (val);
+
+		return ((val[0] << 32) + val[1]);
+	};
+
+	var constants = {
+		EI_NIDENT: 16,
+		EI_MAG0: 0,
+		EI_MAG1: 1,
+		EI_MAG2: 2,
+		EI_MAG3: 3,
+		EI_CLASS: 4,
+		EI_DATA: 5,
+		EI_VERSION: 6,
+		EI_OSABI: 7,
+		EI_ABIVERSION: 8,
+		EI_PAD: 9,
+		ELFMAG0: 0x7f,
+		ELFMAG1: 'E'.charCodeAt(0),
+		ELFMAG2: 'L'.charCodeAt(0),
+		ELFMAG3: 'F'.charCodeAt(0),
+		ELFMAG: '\177ELF',
+		SELFMAG: 4,
+		ELFCLASSNONE: 0,
+		ELFCLASS32: 1,
+		ELFCLASS64: 2,
+		ELFCLASSNUM: 3,
+		ELFDATANONE: 0,
+		ELFDATA2LSB: 1,
+		ELFDATA2MSB: 2,
+		ELFDATANUM: 3,
+		ET_NONE: 0,
+		ET_REL: 1,
+		ET_EXEC: 2,
+		ET_DYN: 3,
+		ET_CORE: 4,
+		ET_NUM: 5,
+		ET_LOOS: 0xfe00,
+		ET_LOSUNW: 0xfeff,
+		ET_SUNWPSEUDO: 0xfeff,
+		ET_HISUNW: 0xfeff,
+		ET_HIOS: 0xfeff,
+		ET_LOPROC: 0xff00,
+		ET_HIPROC: 0xffff,
+		ET_LOPROC: 0xff00,
+		ET_HIPROC: 0xffff,
+		EM_NONE: 0,
+		EM_M32: 1,
+		EM_SPARC: 2,
+		EM_386: 3,
+		EM_68K: 4,
+		EM_88K: 5,
+		EM_486: 6,
+		EM_860: 7,
+		EM_MIPS: 8,
+		EM_S370: 9,
+		EM_MIPS_RS3_LE: 10,
+		EM_RS6000: 11,
+		EM_UNKNOWN12: 12,
+		EM_UNKNOWN13: 13,
+		EM_UNKNOWN14: 14,
+		EM_PA_RISC: 15,
+		EM_PARISC: 15,
+		EM_nCUBE: 16,
+		EM_VPP500: 17,
+		EM_SPARC32PLUS: 18,
+		EM_960: 19,
+		EM_PPC: 20,
+		EM_PPC64: 21,
+		EM_S390: 22,
+		EM_UNKNOWN22: 22,
+		EM_UNKNOWN23: 23,
+		EM_UNKNOWN24: 24,
+		EM_UNKNOWN25: 25,
+		EM_UNKNOWN26: 26,
+		EM_UNKNOWN27: 27,
+		EM_UNKNOWN28: 28,
+		EM_UNKNOWN29: 29,
+		EM_UNKNOWN30: 30,
+		EM_UNKNOWN31: 31,
+		EM_UNKNOWN32: 32,
+		EM_UNKNOWN33: 33,
+		EM_UNKNOWN34: 34,
+		EM_UNKNOWN35: 35,
+		EM_V800: 36,
+		EM_FR20: 37,
+		EM_RH32: 38,
+		EM_RCE: 39,
+		EM_ARM: 40,
+		EM_ALPHA: 41,
+		EM_SH: 42,
+		EM_SPARCV9: 43,
+		EM_TRICORE: 44,
+		EM_ARC: 45,
+		EM_H8_300: 46,
+		EM_H8_300H: 47,
+		EM_H8S: 48,
+		EM_H8_500: 49,
+		EM_IA_64: 50,
+		EM_MIPS_X: 51,
+		EM_COLDFIRE: 52,
+		EM_68HC12: 53,
+		EM_MMA: 54,
+		EM_PCP: 55,
+		EM_NCPU: 56,
+		EM_NDR1: 57,
+		EM_STARCORE: 58,
+		EM_ME16: 59,
+		EM_ST100: 60,
+		EM_TINYJ: 61,
+		EM_AMD64: 62,
+		EM_X86_64: 62,
+		EM_PDSP: 63,
+		EM_UNKNOWN64: 64,
+		EM_UNKNOWN65: 65,
+		EM_FX66: 66,
+		EM_ST9PLUS: 67,
+		EM_ST7: 68,
+		EM_68HC16: 69,
+		EM_68HC11: 70,
+		EM_68HC08: 71,
+		EM_68HC05: 72,
+		EM_SVX: 73,
+		EM_ST19: 74,
+		EM_VAX: 75,
+		EM_CRIS: 76,
+		EM_JAVELIN: 77,
+		EM_FIREPATH: 78,
+		EM_ZSP: 79,
+		EM_MMIX: 80,
+		EM_HUANY: 81,
+		EM_PRISM: 82,
+		EM_AVR: 83,
+		EM_FR30: 84,
+		EM_D10V: 85,
+		EM_D30V: 86,
+		EM_V850: 87,
+		EM_M32R: 88,
+		EM_MN10300: 89,
+		EM_MN10200: 90,
+		EM_PJ: 91,
+		EM_OPENRISC: 92,
+		EM_ARC_A5: 93,
+		EM_XTENSA: 94,
+		EM_NUM: 95,
+		EV_NONE: 0,
+		EV_CURRENT: 1,
+		EV_NUM: 2,
+		ELFOSABI_NONE: 0,
+		ELFOSABI_SYSV: 0,
+		ELFOSABI_HPUX: 1,
+		ELFOSABI_NETBSD: 2,
+		ELFOSABI_LINUX: 3,
+		ELFOSABI_UNKNOWN4: 4,
+		ELFOSABI_UNKNOWN5: 5,
+		ELFOSABI_SOLARIS: 6,
+		ELFOSABI_AIX: 7,
+		ELFOSABI_IRIX: 8,
+		ELFOSABI_FREEBSD: 9,
+		ELFOSABI_TRU64: 10,
+		ELFOSABI_MODESTO: 11,
+		ELFOSABI_OPENBSD: 12,
+		ELFOSABI_OPENVMS: 13,
+		ELFOSABI_NSK: 14,
+		ELFOSABI_AROS: 15,
+		ELFOSABI_ARM: 97,
+		ELFOSABI_STANDALONE: 255,
+		EAV_SUNW_NONE: 0,
+		EAV_SUNW_CURRENT: 1,
+		EAV_SUNW_NUM: 2,
+		PT_NULL: 0,
+		PT_LOAD: 1,
+		PT_DYNAMIC: 2,
+		PT_INTERP: 3,
+		PT_NOTE: 4,
+		PT_SHLIB: 5,
+		PT_PHDR: 6,
+		PT_TLS: 7,
+		PT_NUM: 8,
+		PT_LOOS: 0x60000000,
+		PT_SUNW_UNWIND: 0x6464e550,
+		PT_SUNW_EH_FRAME: 0x6474e550,
+		PT_GNU_EH_FRAME: 0x6474e550,
+		PT_GNU_STACK: 0x6474e551,
+		PT_GNU_RELRO: 0x6474e552,
+		PT_LOSUNW: 0x6ffffffa,
+		PT_SUNWBSS: 0x6ffffffa,
+		PT_SUNWSTACK: 0x6ffffffb,
+		PT_SUNWDTRACE: 0x6ffffffc,
+		PT_SUNWCAP: 0x6ffffffd,
+		PT_HISUNW: 0x6fffffff,
+		PT_HIOS: 0x6fffffff,
+		PT_LOPROC: 0x70000000,
+		PT_HIPROC: 0x7fffffff,
+		PF_R: 0x4,
+		PF_W: 0x2,
+		PF_X: 0x1,
+		PF_MASKOS: 0x0ff00000,
+		PF_MASKPROC: 0xf0000000,
+		PF_SUNW_FAILURE: 0x00100000,
+		PF_SUNW_KILLED: 0x00200000,
+		PF_SUNW_SIGINFO: 0x00400000,
+		PN_XNUM: 0xffff,
+		SHT_NULL: 0,
+		SHT_PROGBITS: 1,
+		SHT_SYMTAB: 2,
+		SHT_STRTAB: 3,
+		SHT_RELA: 4,
+		SHT_HASH: 5,
+		SHT_DYNAMIC: 6,
+		SHT_NOTE: 7,
+		SHT_NOBITS: 8,
+		SHT_REL: 9,
+		SHT_SHLIB: 10,
+		SHT_DYNSYM: 11,
+		SHT_UNKNOWN12: 12,
+		SHT_UNKNOWN13: 13,
+		SHT_INIT_ARRAY: 14,
+		SHT_FINI_ARRAY: 15,
+		SHT_PREINIT_ARRAY: 16,
+		SHT_GROUP: 17,
+		SHT_SYMTAB_SHNDX: 18,
+		SHT_NUM: 19,
+		SHT_LOOS: 0x60000000,
+		SHT_LOSUNW: 0x6fffffef,
+		SHT_SUNW_capchain: 0x6fffffef,
+		SHT_SUNW_capinfo: 0x6ffffff0,
+		SHT_SUNW_symsort: 0x6ffffff1,
+		SHT_SUNW_tlssort: 0x6ffffff2,
+		SHT_SUNW_LDYNSYM: 0x6ffffff3,
+		SHT_SUNW_dof: 0x6ffffff4,
+		SHT_SUNW_cap: 0x6ffffff5,
+		SHT_SUNW_SIGNATURE: 0x6ffffff6,
+		SHT_SUNW_ANNOTATE: 0x6ffffff7,
+		SHT_SUNW_DEBUGSTR: 0x6ffffff8,
+		SHT_SUNW_DEBUG: 0x6ffffff9,
+		SHT_SUNW_move: 0x6ffffffa,
+		SHT_SUNW_COMDAT: 0x6ffffffb,
+		SHT_SUNW_syminfo: 0x6ffffffc,
+		SHT_SUNW_verdef: 0x6ffffffd,
+		SHT_GNU_verdef: 0x6ffffffd,
+		SHT_SUNW_verneed: 0x6ffffffe,
+		SHT_GNU_verneed: 0x6ffffffe,
+		SHT_SUNW_versym: 0x6fffffff,
+		SHT_GNU_versym: 0x6fffffff,
+		SHT_HISUNW: 0x6fffffff,
+		SHT_HIOS: 0x6fffffff,
+		SHT_GNU_ATTRIBUTES: 0x6ffffff5,
+		SHT_GNU_HASH: 0x6ffffff6,
+		SHT_GNU_LIBLIST: 0x6ffffff7,
+		SHT_CHECKSUM: 0x6ffffff8,
+		SHT_LOPROC: 0x70000000,
+		SHT_HIPROC: 0x7fffffff,
+		SHT_LOUSER: 0x80000000,
+		SHT_HIUSER: 0xffffffff,
+		SHF_WRITE: 0x01,
+		SHF_ALLOC: 0x02,
+		SHF_EXECINSTR: 0x04,
+		SHF_MERGE: 0x10,
+		SHF_STRINGS: 0x20,
+		SHF_INFO_LINK: 0x40,
+		SHF_LINK_ORDER: 0x80,
+		SHF_OS_NONCONFORMING: 0x100,
+		SHF_GROUP: 0x200,
+		SHF_TLS: 0x400,
+		SHF_MASKOS: 0x0ff00000,
+		SHF_MASKPROC: 0xf0000000,
+		SHN_UNDEF: 0,
+		SHN_LORESERVE: 0xff00,
+		SHN_LOPROC: 0xff00,
+		SHN_HIPROC: 0xff1f,
+		SHN_LOOS: 0xff20,
+		SHN_LOSUNW: 0xff3f,
+		SHN_SUNW_IGNORE: 0xff3f,
+		SHN_HISUNW: 0xff3f,
+		SHN_HIOS: 0xff3f,
+		SHN_ABS: 0xfff1,
+		SHN_COMMON: 0xfff2,
+		SHN_XINDEX: 0xffff,
+		SHN_HIRESERVE: 0xffff,
+		STN_UNDEF: 0,
+		STB_LOCAL: 0,
+		STB_GLOBAL: 1,
+		STB_WEAK: 2,
+		STB_NUM: 3,
+		STB_LOPROC: 13,
+		STB_HIPROC: 15,
+		STT_NOTYPE: 0,
+		STT_OBJECT: 1,
+		STT_FUNC: 2,
+		STT_SECTION: 3,
+		STT_FILE: 4,
+		STT_COMMON: 5,
+		STT_TLS: 6,
+		STT_NUM: 7,
+		STT_LOOS: 10,
+		STT_HIOS: 12,
+		STT_LOPROC: 13,
+		STT_HIPROC: 15,
+		STV_DEFAULT: 0,
+		STV_INTERNAL: 1,
+		STV_HIDDEN: 2,
+		STV_PROTECTED: 3,
+		STV_EXPORTED: 4,
+		STV_SINGLETON: 5,
+		STV_ELIMINATE: 6,
+		STV_NUM: 7,
+		GRP_COMDAT: 0x01,
+		CAPINFO_NONE: 0,
+		CAPINFO_CURRENT: 1,
+		CAPINFO_NUM: 2,
+		CAPCHAIN_NONE: 0,
+		CAPCHAIN_CURRENT: 1,
+		CAPCHAIN_NUM: 2,
+		CAPINFO_SUNW_GLOB: 0xff,
+		CA_SUNW_NULL: 0,
+		CA_SUNW_HW_1: 1,
+		CA_SUNW_SF_1: 2,
+		CA_SUNW_HW_2: 3,
+		CA_SUNW_PLAT: 4,
+		CA_SUNW_MACH: 5,
+		CA_SUNW_ID: 6,
+		CA_SUNW_NUM: 7,
+		SF1_SUNW_FPKNWN: 0x001,
+		SF1_SUNW_FPUSED: 0x002,
+		SF1_SUNW_ADDR32: 0x004,
+		SF1_SUNW_MASK: 0x007,
+		NT_PRSTATUS: 1,
+		NT_PRFPREG: 2,
+		NT_PRPSINFO: 3,
+		NT_PRXREG: 4,
+		NT_PLATFORM: 5,
+		NT_AUXV: 6,
+		NT_GWINDOWS: 7,
+		NT_ASRS: 8,
+		NT_LDT: 9,
+		NT_PSTATUS: 10,
+		NT_PSINFO: 13,
+		NT_PRCRED: 14,
+		NT_UTSNAME: 15,
+		NT_LWPSTATUS: 16,
+		NT_LWPSINFO: 17,
+		NT_PRPRIV: 18,
+		NT_PRPRIVINFO: 19,
+		NT_CONTENT: 20,
+		NT_ZONENAME: 21,
+		NT_FDINFO: 22,
+		NT_SPYMASTER: 23,
+		NT_NUM: 23
+	};
+
+	var Elf_Ehdr = [
+		{ e_ident: { type: 'char[' + constants.EI_NIDENT + ']' } },
+		{ e_type: { type: 'Elf_Half' } },
+		{ e_machine: { type: 'Elf_Half' } },
+		{ e_version: { type: 'Elf_Word' } },
+		{ e_entry: { type: 'Elf_Addr' } },
+		{ e_phoff: { type: 'Elf_Off' } },
+		{ e_shoff: { type: 'Elf_Off' } },
+		{ e_flags: { type: 'Elf_Word' } },
+		{ e_ehsize: { type: 'Elf_Half' } },
+		{ e_phentsize: { type: 'Elf_Half' } },
+		{ e_phnum: { type: 'Elf_Half' } },
+		{ e_shentsize: { type: 'Elf_Half' } },
+		{ e_shnum: { type: 'Elf_Half' } },
+		{ e_shstrndx: { type: 'Elf_Half' } }
+	];
+
+	var Elf_Phdr32 = [
+		{ p_type: { type: 'Elf_Word' } },
+		{ p_offset: { type: 'Elf_Off' } },
+		{ p_vaddr: { type: 'Elf_Addr' } },
+		{ p_paddr: { type: 'Elf_Addr' } },
+		{ p_filesz: { type: 'Elf_Size' } },
+		{ p_memsz: { type: 'Elf_Size' } },
+		{ p_flags: { type: 'Elf_Word' } },
+		{ p_align: { type: 'Elf_Size' } }
+	];
+
+	var Elf_Phdr64 = [
+		{ p_type: { type: 'Elf_Word' } },
+		{ p_flags: { type: 'Elf_Word' } },
+		{ p_offset: { type: 'Elf_Off' } },
+		{ p_vaddr: { type: 'Elf_Addr' } },
+		{ p_paddr: { type: 'Elf_Addr' } },
+		{ p_filesz: { type: 'Elf_Size' } },
+		{ p_memsz: { type: 'Elf_Size' } },
+		{ p_align: { type: 'Elf_Size' } }
+	];
+
+	var Elf_Phdr;
+
+	var parser = new mod_ctype.Parser({ endian: 'little' });
+	var buffer = new Buffer(minsize);
+
+	try {
+		mod_fs.readSync(fd, buffer, 0, minsize, 0);
+	} catch (err) {
+		err('couldn\'t read ELF header');
+		return (false);
+	}
+
+	var ehdr = parser.readData(Elf_Ehdr.slice(0, 1), buffer, 0);
+	var hdr = ehdr.e_ident;
+
+	for (i = 0; i < constants.SELFMAG; i++) {
+		if (hdr[constants['EI_MAG' + i]] != constants['ELFMAG' + i]) {
+			err('mismatch at magic ' + i);
+			return (false);
+		}
+	}
+
+	switch (hdr[constants.EI_CLASS]) {
+	case constants.ELFCLASS32:
+		width = '32';
+		Elf_Phdr = Elf_Phdr32;
+		break;
+	case constants.ELFCLASS64:
+		width = '64';
+		Elf_Phdr = Elf_Phdr64;
+		break;
+	default:
+		err('unknown class ' + hdr[constants.EI_CLASS]);
+		return (false);
+	}
+
+	switch (hdr[constants.EI_DATA]) {
+	case constants.ELFDATA2LSB:
+		endianness = 'little';
+		break;
+	case constants.ELFDATA2MSB:
+		endianness = 'big';
+		break;
+	default:
+		err('unknown data class ' + hdr[constants.EI_DATA]);
+		return (false);
+	}
+
+	parser = new mod_ctype.Parser({ endian: endianness });
+
+	var types = {
+		Elf_Addr: 'uint' + width + '_t',
+		Elf_Off: 'uint' + width + '_t',
+		Elf_Size: 'uint' + width + '_t',
+		Elf_Half: 'uint16_t',
+		Elf_Word: 'uint32_t',
+		Elf_Sword: 'int32_t',
+		Elf_Xword: 'uint64_t',
+		Elf_Sxword: 'int64_t'
+	};
+
+	for (t in types)
+		parser.typedef(t, types[t]);
+
+	var ehdr = parser.readData(Elf_Ehdr, buffer, 0);
+
+	if (ehdr.e_type != constants.ET_CORE)
+		return (false);
+
+	var phdrsz = ehdr.e_phentsize * ehdr.e_phnum;
+
+	/*
+	 * Now read the program headers
+	 */
+	var pbuffer = new Buffer(phdrsz);
+
+	try {
+		mod_fs.readSync(fd, pbuffer, 0, phdrsz, int64(ehdr.e_phoff));
+	} catch (e) {
+		err('couldn\'t read ' + phdrsz +
+		    ' bytes of program headers at ' + int64(ehdr.e_phoff));
+		return (false);
+	}
+
+	for (i = 0; i < ehdr.e_phnum; i++) {
+		var notes, nsize, noffs;
+
+		var phdr = parser.readData(Elf_Phdr, pbuffer,
+		    i * ehdr.e_phentsize);
+
+		sum.update(JSON.stringify(phdr));
+
+		if (phdr.p_type != constants.PT_NOTE)
+			continue;
+
+		/*
+		 * To hash a core dump, we hash the program headers and the
+		 * note sections.  This contains information like the current
+		 * machine and process state (including microstate accounting
+		 * times) to assure that it's fully unique.
+		 */
+		noffs = int64(phdr.p_offset);
+		nsize = int64(phdr.p_filesz);
+		notes = new Buffer(nsize);
+
+		try {
+			mod_fs.readSync(fd, notes, 0, nsize, noffs);
+		} catch (e) {
+			err('couldn\'t read ' + nsize +
+			    ' bytes of PT_NOTE at ' + noffs + ': ' +
+			    util.inspect(e));
+			return (false);
+		}
+
+		sum.update(notes);
+	}
+
+	return (true);
+}
+
+var isCrash = function (fd, sum)
+{
+	var parser = new mod_ctype.Parser({ endian: 'little' });
+	var hdr, p;
+
+	var minsize = 8192;
+	var buffer = new Buffer(minsize);
+
+	try {
+		mod_fs.readSync(fd, buffer, 0, minsize, 0);
+	} catch (err) {
+		return (false);
+	}
+
+	var constants = {
+		DUMP_MAGIC: 0xdefec8ed,
+		DF_VALID: 0x00000001,
+		DF_COMPLETE: 0x00000002,
+		DF_LIVE: 0x00000004,
+		DF_COMPRESSED: 0x00000008,
+		DF_KERNEL: 0x00010000,
+		DF_ALL: 0x00020000,
+		DF_CURPROC: 0x00040000,
+		DF_CONTENT: 0xffff0000
+	};
+
+	var utsname = [
+		{ sysname: { type: 'char[257]' } },
+		{ nodename: { type: 'char[257]' } },
+		{ release: { type: 'char[257]' } },
+		{ version: { type: 'char[257]' } },
+		{ machine: { type: 'char[257]' } }
+	];
+
+	var dumphdr = [
+		{ dump_magic: { type: 'uint32_t' } },
+		{ dump_version: { type: 'uint32_t' } },
+		{ dump_flags: { type: 'uint32_t' } },
+		{ dump_wordsize: { type: 'uint32_t' } },
+		{ dump_start: { type: 'offset_t' } },
+		{ dump_ksyms: { type: 'offset_t' } },
+		{ dump_pfn: { type: 'offset_t' } },
+		{ dump_map: { type: 'offset_t' } },
+		{ dump_data: { type: 'offset_t' } },
+		{ dump_utsname: { type: 'struct utsname' } },
+		{ dump_platform: { type: 'char[257]' } },
+		{ dump_panicstring: { type: 'char[202]' } },
+		{ dump_crashtime: { type: 'time_t' } },
+		{ dump_pageshift: { type: 'int64_t' } },
+		{ dump_pagesize: { type: 'int64_t' } },
+		{ dump_hashmask: { type: 'int64_t' } },
+		{ dump_nvtop: { type: 'int64_t' } },
+		{ dump_npages: { type: 'pgcnt_t' } },
+		{ dump_ksyms_size: { type: 'size_t' } },
+		{ dump_ksyms_csize: { type: 'size_t' } },
+		{ dump_fm_panic: { type: 'uint32_t' } },
+		{ dump_uuid: { type: 'char[37]' } },
+	];
+
+	var types = {
+		size_t: 'uint64_t',
+		time_t: 'int64_t',
+		offset_t: 'uint64_t',
+		pgcnt_t: 'uint64_t'
+	};
+
+	for (t in types)
+		parser.typedef(t, types[t]);
+
+	parser.typedef('struct utsname', utsname);
+
+	hdr = parser.readData(dumphdr, buffer, 0);
+
+	if (hdr.dump_magic != constants.DUMP_MAGIC) {
+		status('not a dump; magic mismatch (expected ' +
+		    constants.DUMP_MAGIC + '; found ' + hdr.dump_magic + ')');
+		return (false);
+	}
+
+	if (!(hdr.dump_flags & constants.DF_COMPLETE)) {
+		status('not a complete dump');
+		return (false);
+	}
+
+	if (!(hdr.dump_flags & constants.DF_COMPRESSED)) {
+		status('dump is not compressed');
+		return (false);
+	}
+
+	/*
+	 * To hash a dump, we hash only the dump header.  This contains enough
+	 * information (and in particular, time stamp, node name, and number
+	 * of pages) that an md5 should be sufficiently unique.
+	 */
+	sum.update(util.inspect(hdr));
+
+	return (true);
+}
+
+checkError = function (err)
+{
+	if (err)
+		fatal(err.stack, 100);
+}
+
+jobWait = function (client, jobid, cb)
+{
+	status('waiting for completion of job ' + jobid);
+	var start = new Date().valueOf();
+
+	var check = function () {
+		client.job(jobid, function (err, job) {
+			checkError(err);
+
+			if (job.state == 'running' || job.state == 'queued') {
+				again();
+			} else if (job.state == 'done' &&
+			    (job.stats.errors === 0 || (job.phases.length > 1 &&
+			    job.stats.outputs == 1))) {
+				status('job ' + jobid +  ' completed in ' +
+				    hms(new Date().valueOf() - start));
+				cb(job);
+			} else {
+				fatal('job ' + jobid + ' failed: ' +
+				    util.inspect(job));
+			}
+		});
+	};
+
+	var again = function () {
+		setTimeout(check, 250);
+	};
+
+	check();
+};
+
+jobOutput = function (client, cb)
+{
+	var found = false;
+
+	var fetchOutput = function (job, key) {
+		client.get(key, function (err, stream, res) {
+			checkError(err);
+
+			var output = '';
+
+			stream.on('data', function (data) {
+				output += data;
+			});
+
+			stream.on('end', function () {
+				cb(output);
+			});
+		});
+	};
+
+	return (function (job) {
+		client.jobOutput(job.id, function (err, out) {
+			checkError(err);
+			out.on('key', function (k) {
+				found = true;
+				fetchOutput(job, k);
+			});
+			out.on('end', function () { if (!found) cb(); });
+		});
+	});
+}
+
+jobOneKey = function (client, key, cmd, cb, preflight)
+{
+	var job = { phases: [ { exec: cmd, type: 'storage-map' } ] };
+
+	if (preflight)
+		preflight(job);
+
+	client.createJob(job, function (err, id) {
+		checkError(err);
+
+		status('adding key to job ' + id);
+
+		client.addJobKey(id, key, function (err) {
+			checkError(err);
+
+			client.endJob(id, function (err) {
+				checkError(err);
+				status('processing job ' + id);
+				jobWait(client, id, cb);
+			});
+		});
+	});
+};
+
+jobSetThoth = function (job)
+{
+	var phase = job.phases[0];
+	var asset = '/thoth/public/assets/' + thoth.asset;
+	var config = '.thoth.' + thoth.config;
+
+	if (!phase.assets)
+		phase.assets = [];
+
+	phase.assets.push(asset);
+
+	phase.init = 'echo \'{"db": ' + JSON.stringify(thoth.db) + '}\' > ' +
+	    '~/' + config + '; cd / ; tar xzf /assets/' + asset;
+}
+
+jobExecThoth = function (what)
+{
+	return ('/opt/custom/thoth/node_modules/manta-thoth/bin/thoth ' +
+	    'load ' + what);
+}
+
+dumpsFromSpec = function (argv, opts, cb)
+{
+	var i;
+	var illegal = undefined;
+	var filters = [], time = undefined, undefs = [], limit = undefined;
+
+	var deref = function (dump, field) {
+		var f = field.split('.'), rval = dump;
+
+		while (f.length > 0)
+			rval = rval(f.shift());
+
+		return (rval);
+	};
+
+	var derefOne = function (dump, field) {
+		var f = field.split('.'), rval = dump;
+
+		while (f.length > 1)
+			rval = rval(f.shift());
+
+		return (rval);
+	};
+
+	var eqfilter = function (field, match) {
+		return (function (dump) {
+			return (deref(dump, field).eq(match));
+		});
+	};
+
+	var matchfilter = function (field, match) {
+		return (function (dump) {
+			return (deref(dump, field).match(match));
+		});
+	};
+
+	var framematch = function (match) {
+		return (function (frame) {
+			return (frame.match(match));
+		});
+	};
+
+	var stackfilter = function (func) {
+		return (function (dump) {
+			return (dump('stack').contains(func));
+		});
+	};
+
+	var missing = function (field) {
+		var f = field.split('.');
+
+		if (f.length == 1) {
+			return (function (dump) {
+				return (dump.hasFields(field).not());
+			});
+		}
+
+		var last = f.pop();
+
+		return (function (dump) {
+			return (deref(dump, f.join('.')).hasFields(last).not());
+		});
+	};
+
+	for (i = 0; i < argv.length; i++) {
+		var filter = argv[i].split('=');
+
+		if (filter.length != 2)
+			fatal('dump specification must be "prop=val"');
+
+		if ((filter[0] == 'time') || (filter[0] == 'mtime')) {
+			time = parseAge(filter[1]);
+			continue;
+		}
+
+		if (filter[0] == 'limit') {
+			limit = parseInt(filter[1], 10);
+			continue;
+		}
+
+		/*
+		 * This is one million percent ghetto, but we permit some
+		 * crude globbing:  if we see '*' or '?', we'll turn it into
+		 * a proper regular expression.
+		 */
+		if (filter[1].indexOf('*') != -1 ||
+		    filter[1].indexOf('?') != -1) {
+			var re;
+
+			/*JSSTYLED*/
+			illegal = filter[1].match(/([.+^=!:${}()|[\]\/\\])/);
+
+			if (illegal)
+				break;
+
+			/*JSSTYLED*/
+			re = '^' + filter[1].replace(/\*/g, '(.|\\n)*') + '$';
+			re = re.replace(/\?/g, '(.|\\n)');
+
+			if (filter[0] == 'stack') {
+				filters.push(stackfilter(framematch(re)));
+			} else {
+				filters.push(matchfilter(filter[0], re));
+			}
+		} else if (filter[1] == 'undefined') {
+			undefs.push(missing(filter[0]));
+		} else {
+			/*JSSTYLED*/
+			illegal = filter[1].match(/["']/);
+
+			if (illegal)
+				break;
+
+			if (filter[0] == 'stack') {
+				filters.push(stackfilter(filter[1]));
+			} else {
+				filters.push(eqfilter(filter[0], filter[1]));
+			}
+		}
+	}
+
+	if (illegal) {
+		fatal('"' + argv[i] + '" contains illegal ' +
+		    'character \'' + illegal[0] +
+		    '\' at index ' + illegal.index);
+	}
+
+	mod_r.connect(thoth.db, function (err, conn) {
+		if (err) {
+			fatal('couldn\'t connect to database: ' +
+			    err.message);
+		}
+
+		var rval = mod_r.table('dumps');
+
+		if (time) {
+			rval = rval.between(time,
+			    (new Date()).valueOf() / 1000,
+			    { index: 'time', leftBound: 'open' });
+		}
+
+		for (i = 0; i < filters.length; i++)
+			rval = rval.filter(filters[i]);
+
+		for (i = 0; i < undefs.length; i++)
+			rval = rval.filter(undefs[i], { default: true });
+
+		if (opts.fields) {
+			if (opts.group) {
+				if (opts.fields.length > 1)
+					fatal('can only group on one field');
+
+				var f = opts.fields[0];
+
+				if (!f) {
+					rval = rval.count();
+				} else if (f instanceof Object) {
+					rval = rval.group(function (d) {
+						return (d.pluck(f));
+					}).count();
+				} else {
+					rval = rval.group(f).count();
+				}
+			} else {
+				rval = rval.pluck(opts.fields);
+			}
+		}
+
+		if (limit)
+			rval = rval.limit(limit);
+
+		rval.run(conn, function (err, cursor) {
+			if (err)
+				fatal('couldn\'t query dumps: ' + err.message);
+
+			if (opts.group) {
+				if (!opts.fields[0]) {
+					/*
+					 * If we don't have a field that we're
+					 * reporting, the caller just wants a
+					 * count; there's nothing else to do.
+					 */
+					cb(cursor);
+					return;
+				}
+
+				cursor.sort(function (l, r) {
+					if (l.reduction < r.reduction) {
+						return (-1);
+					} else if (l.reduction == r.reduction) {
+						return (0);
+					} else {
+						return (1);
+					}
+				});
+
+				cb(cursor);
+				return;
+			}
+
+			cursor.toArray(function (err, results) {
+				cb(results);
+			});
+		});
+	});
+}
+
+processStack = function ()
+{
+	return ('mdb -e \'$c 0\' $MANTA_INPUT_FILE 2> /dev/null | ' +
+	    'awk \'BEGIN{printf("\\t\\"stack\\": [ ")} ' +
+	    '{printf("%s\\"%s\\"", NR > 1 ? ", " : "", $0)} ' +
+	    'END{printf(" ],\\n")}\'');
+}
+
+processCore = function (client, stat, base, dump, cb)
+{
+	var elfdump = 'elfdump -n $MANTA_INPUT_FILE | ';
+	var json = '/tmp/json.$$';
+	var quotestr = 'sed \'s/"/\\\"/g\'';
+
+	var dumpfield = function (f) {
+		return (elfdump + 'awk \'{ if ($1 == "' + f + ':") ' +
+		    '{ print $2; exit(0) } }\' | ' + quotestr);
+	};
+
+	var dumpline = function (f) {
+		return (elfdump + 'awk \'{ if ($1 == "' + f + ':") { ' +
+		    'print $0; exit(0); } }\' | cut -d: -f2 | ' +
+		    'sed \'s/^[ ]*//g\' | ' + quotestr);
+	};
+
+	var echo = function (f) {
+		return ('echo \'' + f + '\'');
+	};
+
+	var fields = {
+		name: echo(base),
+		dump: echo(dump),
+		pid: dumpfield('pr_pid'),
+		cmd: dumpline('pr_fname'),
+		psargs: dumpline('pr_psargs'),
+		platform: dumpfield('version'),
+		node: dumpfield('nodename'),
+		version: echo(thoth.version),
+		time: { val: echo((stat.mtime.valueOf() / 1000) + '') }
+	};
+
+	var cmd = 'echo { > ' + json + '; ';
+
+	for (f in fields) {
+		if (fields[f] instanceof Object) {
+			cmd += fields[f].val + '| awk \'{ printf("\\t\\"' + f +
+			    '\\": %s,\\n", $0) }\' >> ' + json + ';'
+			continue;
+		}
+
+		cmd += fields[f] + '| awk \'{ printf("\\t\\"' + f +
+		    '\\": \\"%s\\",\\n", $0) }\' >> ' + json + ';'
+	}
+
+	cmd += processStack() + ' >> ' + json + '; ';
+	cmd += 'echo \'\t"type": "core",\' >> ' + json + '; ';
+	cmd += 'echo \'\t"properties": {}\' >> ' + json + '; ';
+	cmd += 'echo } >> ' + json + '; ';
+	cmd += 'mput -f ' + json + ' ' + base + '/info.json';
+
+	job = { phases: [ { exec: cmd, type: 'storage-map' } ] };
+
+	status('creating job to process ' + mod_path.basename(base));
+
+	client.createJob(job, function (err, id) {
+		checkError(err);
+
+		status('adding key to job ' + id);
+
+		client.addJobKey(id, dump, function (err) {
+			checkError(err);
+			status('processing ' + mod_path.basename(base));
+
+			client.endJob(id, function (err) {
+				checkError(err);
+				jobWait(client, id, cb);
+			});
+		});
+	});
+};
+
+var uncompressCore = function (client, stat, base, dump, cb)
+{
+	cmd = 'gunzip -cd $MANTA_INPUT_FILE > /var/tmp/gunzip.$$ ;'
+	cmd += 'mput -f /var/tmp/gunzip.$$ ' + dump;
+
+	status('creating job to uncompress ' + mod_path.basename(base));
+	jobOneKey(client, dump + '.gz', cmd,
+	    function () { processCore(client, stat, base, dump, cb); },
+	    function (job) { job.phases[0].disk = 128; });
+};
+
+var progressBar = function (dump, stream, stat)
+{
+	if (!process.stderr.isTTY)
+		return;
+
+	var bar = new mod_manta.ProgressBar({
+		filename: 'thoth: ' + mod_path.basename(dump),
+		size: stat.size,
+		nosize: false
+	});
+
+	stream.on('data', function (data) {
+		bar.advance(data.length);
+	});
+
+	stream.once('end', function () {
+		bar.end();
+	});
+};
+
+var putCore = function (client, file, stat, base, cb)
+{
+	/*
+	 * We have the dump verified and we have the directory successfully
+	 * created; time to actually upload the dump.
+	 */
+	var stream = mod_fs.createReadStream(file);
+	var dump = base + '/' + mod_path.basename(file);
+	var gzip = mod_zlib.createGzip();
+
+	status('uploading ' + mod_path.basename(dump) + ' to ' +
+	    mod_path.basename(base));
+
+	progressBar(dump, stream, stat);
+
+	pipe = stream.pipe(gzip);
+	pipe.pause();
+
+	var opts = {
+		copies: 1,
+		headers: { 'max-content-length': stat.size }
+	};
+
+	stream.on('open', function () {
+		client.put(dump + '.gz', gzip, opts, function (err) {
+			checkError(err);
+
+			uncompressCore(client, stat, base, dump, cb);
+		});
+	});
+};
+
+var processCrash = function (client, stat, base, dump, cb)
+{
+	var mdb = function (cmd) {
+		return ('mdb -e "' + cmd + '" $MANTA_INPUT_FILE ' +
+		    '2> /dev/null | ');
+	};
+
+	var json = '/tmp/json.$$';
+
+	var echo = function (f) {
+		return ('echo \'' + f + '\'');
+	};
+
+	var dumpfield = function (f) {
+		return (mdb('utsname::print') + 'grep "' + f + ' = " | ' +
+		    'cut -d\\" -f2');
+	};
+
+	var fields = {
+		name: echo(base),
+		dump: echo(dump),
+		platform: dumpfield('version'),
+		node: dumpfield('nodename'),
+		version: echo(thoth.version),
+		time: { val: mdb('time/E') + 'tail -1 | awk \'{print $2}\'' }
+	};
+
+	var cmd = 'echo { > ' + json + '; ';
+
+	for (f in fields) {
+		if (fields[f] instanceof Object) {
+			cmd += fields[f].val + '| awk \'{ printf("\\t\\"' + f +
+			    '\\": %s,\\n", $0) }\' >> ' + json + ';'
+			continue;
+		}
+
+		cmd += fields[f] + '| awk \'{ printf("\\t\\"' + f +
+		    '\\": \\"%s\\",\\n", $0) }\' >> ' + json + ';'
+	}
+
+	cmd += processStack() + ' >> ' + json + '; ';
+	cmd += 'echo \'\t"type": "crash",\' >> ' + json + '; ';
+	cmd += 'echo \'\t"properties": {}\' >> ' + json + '; ';
+	cmd += 'echo } >> ' + json + '; ';
+	cmd += 'mput -f ' + json + ' ' + base + '/info.json';
+
+	job = { phases: [ { exec: cmd, type: 'storage-map' } ] };
+
+	status('creating job to process ' + mod_path.basename(base));
+
+	client.createJob(job, function (err, id) {
+		checkError(err);
+
+		status('adding key to job ' + id);
+
+		client.addJobKey(id, dump, function (err) {
+			checkError(err);
+			status('processing ' + mod_path.basename(base));
+
+			client.endJob(id, function (err) {
+				checkError(err);
+				jobWait(client, id, cb);
+			});
+		});
+	});
+}
+
+var uncompressCrash = function (client, stat, base, dump, cb)
+{
+	var vmcore = base + '/vmcore.0';
+	var cmd = 'set -o errexit ;';
+	cmd += 'dir=/var/tmp/savecore.$$ ;';
+	cmd += 'mkdir $dir ; savecore -f $MANTA_INPUT_FILE -d $dir ; ';
+	cmd += 'mput -f $dir/vmcore* ' + vmcore;
+
+	status('creating job to savecore ' + mod_path.basename(base));
+	jobOneKey(client, dump, cmd,
+	    function () { processCrash(client, stat, base, vmcore, cb); },
+	    function (job) {
+		job.phases[0].disk = 256;
+		job.phases[0].memory = 8192;
+	    });
+};
+
+var putCrash = function (client, file, stat, base, cb)
+{
+	var stream = mod_fs.createReadStream(file);
+	var dump = base + '/' + mod_path.basename(file);
+
+	stream.pause();
+
+	status('uploading ' + mod_path.basename(dump) + ' to ' +
+	    mod_path.basename(base));
+
+	progressBar(dump, stream, stat);
+
+	var opts = {
+		copies: 1,
+		headers: { 'max-content-length': stat.size }
+	};
+
+	stream.on('open', function () {
+		client.put(dump, stream, opts, function (err) {
+			checkError(err);
+			uncompressCrash(client, stat, base, dump, cb);
+		});
+	});
+}
+
+var openDump = function (name, cb, failed)
+{
+	var fd, file = { name: name };
+	var stat;
+	var sum = mod_crypto.createHash('md5');
+	var path = [ thoth.path ], digest;
+
+	try {
+		fd = mod_fs.openSync(name, 'r');
+	} catch (err) {
+		if (!failed)
+			fatal('couldn\'t open "' + name + '": ' + err);
+		return (failed());
+	}
+
+	file.stat = mod_fs.fstatSync(fd);
+
+	var done = function () {
+		mod_fs.closeSync(fd);
+		path.push(file.digest = sum.digest('hex'));
+		file.base = path.join('/');
+		cb(file);
+	};
+
+	if (isCore(fd, sum)) {
+		file.type = 'core';
+		done();
+	} else if (isCrash(fd, sum)) {
+		file.type = 'crash';
+		done();
+	} else {
+		fatal('"' + name + '" is neither a core nor a crash dump');
+	}
+}
+
+var infoGet = function (client, dump, cb, bypass)
+{
+	argToInfo(client, dump, function (object, err, stream, res) {
+		checkError(err);
+
+		if (!stream) {
+			cb(object);
+			return;
+		}
+
+		var output = '';
+
+		stream.on('data', function (data) {
+			output += data;
+		});
+
+		stream.on('end', function () {
+			cb(JSON.parse(output));
+		});
+	}, bypass);
+}
+
+handlers.upload = function (client, argv)
+{
+	put = {
+		crash: putCrash,
+		core: putCore
+	};
+
+	var next = function () {
+		if (argv.length == 1)
+			process.exit(0);
+
+		handlers.upload(client, argv.slice(1, argv.length));
+	};
+
+	openDump(argv[0], function (file) {
+		status('creating ' + file.digest);
+
+		client.mkdirp(file.base, function (err) {
+			checkError(err);
+			put[file.type](client,
+			    file.name, file.stat, file.base, next);
+		});
+	});
+}
+
+handlers.ls = function (client, argv)
+{
+	var fields = [ 'name', 'type', 'time', 'node', 'cmd', 'ticket' ];
+	var obj = {}, widths = {};
+	var i;
+
+	for (i = 0; i < argv.length; i++) {
+		if (argv[i].indexOf('=') == -1)
+			break;
+	}
+
+	if (i < argv.length) {
+		fields = fields.concat(argv.splice(i, argv.length - i));
+	} else {
+		/*
+		 * If we have the default output, adjust our fields lengths
+		 * to be constant.
+		 */
+		widths['node/cmd'] = 16;
+		widths['type'] = 5;
+	}
+
+	var assign = function (o, prop) {
+		if (prop.length == 1) {
+			o[prop[0]] = true;
+			return;
+		}
+
+		if (!o[prop[0]])
+			o[prop[0]] = {};
+
+		assign(o[prop.shift()], prop);
+	};
+
+	/*
+	 * We need to iterate over our fields, turning them into a specifcation
+	 * object.
+	 */
+	for (i = 0; i < fields.length; i++) {
+		if (fields[i].indexOf('=') != -1) {
+			fatal('can\'t intermix specification properties ' +
+			    'with output properties');
+		}
+
+		assign(obj, fields[i].split('.'));
+	}
+
+	var transforms = {
+		name: function (val) {
+			return (mod_path.basename(val).substr(0, 16));
+		},
+		time: function (val) {
+			var t = new Date(val * 1000);
+			return (t.toISOString().substr(0, 19));
+		}
+	};
+
+	var dumpfields = function (dump, fields, cb) {
+		var j;
+
+		for (j = 0; j < fields.length; j++) {
+			var f = fields[j];
+			var hdr = f;
+			var val;
+
+			if (hdr.indexOf('.') != -1)
+				hdr = hdr.split('.').pop();
+
+			if (f == 'node' && fields[j + 1] == 'cmd') {
+				hdr = f + '/' + fields[j + 1];
+
+				if (dump && dump.type == 'core')
+					f = 'cmd';
+				j++;
+			}
+
+			if (!dump) {
+				cb(hdr);
+				continue;
+			}
+
+			try {
+				val = eval('dump.' + f);
+
+				if (transforms[f])
+					val = transforms[f](val);
+			} catch (err) {
+				val = undefined;
+			}
+
+			if (val === undefined)
+				val = '-';
+
+			cb(hdr, val);
+		}
+	};
+
+	dumpsFromSpec(argv, { fields: obj }, function (dumps) {
+		for (i = 0; i < dumps.length; i++) {
+			if (!dumps[i].time)
+				dumps[i].time = 0;
+		}
+
+		dumps.sort(function (l, r) {
+		    return (l.time < r.time ?  -1 : l.time > r.time ? 1 : 0);
+		});
+
+		for (i = 0; i < dumps.length; i++) {
+			var dump = dumps[i];
+
+			dumpfields(dumps[i], fields, function (hdr, val) {
+				if (i == 0 && !widths[hdr])
+					widths[hdr] = hdr.length;
+
+				if (val.length > widths[hdr])
+					widths[hdr] = val.length;
+			});
+		}
+
+		var output = '';
+
+		dumpfields(undefined, fields, function (hdr) {
+			if (output.length > 0)
+				output += ' ';
+
+			if (!widths[hdr])
+				widths[hdr] = hdr.length;
+
+			output += sprintf('%-' + widths[hdr] + 's',
+			    hdr.toUpperCase().substr(0, widths[hdr]));
+		});
+
+		console.log(output);
+
+		for (i = 0; i < dumps.length; i++) {
+			output = '';
+
+			dumpfields(dumps[i], fields, function (hdr, val) {
+				if (output.length > 0)
+					output += ' ';
+
+				output += sprintf('%-' +
+				     widths[hdr] + 's', val);
+			});
+
+			console.log(output);
+		}
+
+		process.exit(0);
+	});
+}
+
+handlers.info = function (client, argv)
+{
+	var output = function (out) {
+		console.log(JSON.stringify(out, null, 4));
+		process.exit(0);
+	};
+
+	if (argv.length == 1 && argv[0].indexOf('=') == -1) {
+		infoGet(client, argv[0], output);
+	} else {
+		dumpsFromSpec(argv, {}, output);
+	}
+}
+
+handlers.load = function (client, argv)
+{
+	var id;
+	var info;
+
+	var load = function (info) {
+		info.id = id = info.name.split('/').pop();
+
+		mod_r.connect(thoth.db, function (err, conn) {
+			if (err) {
+				fatal('couldn\'t connect to database: ' +
+				    err.message);
+			}
+
+			mod_r.table('dumps').insert(info,
+			    { conflict: 'replace' }).run(conn, done);
+		});
+	};
+
+	var done = function (err, results) {
+		if (!err) {
+			console.log(results);
+			process.exit(0);
+		}
+
+		fatal('couldn\'t insert ' + id + ': ' + err.message);
+	};
+
+	if (argv.length != 1)
+		fatal('need a dump specification to load');
+
+	/*
+	 * First, try to load this as a file...
+	 */
+	try {
+		load(JSON.parse(mod_fs.readFileSync(argv[0])));
+		return;
+	} catch	(err) {
+		if (err.code != 'ENOENT')
+			fatal('couldn\'t parse ' + argv[0] + ': ' + err);
+	}
+
+	/*
+	 * That failed; we'll now connect to Manta and assume that this is a
+	 * fully specified dump.
+	 */
+	client = connect();
+
+	if (argv[0].indexOf('=') != -1 || argv[0].length < thoth.hashlen)
+		fatal('need a fully specified dump to load');
+
+	infoGet(client, argv[0], load, true);
+}
+
+handlers.debug = function (client, argv)
+{
+	var mlogin = mod_path.dirname(require.resolve('manta')) +
+	    '/../bin/mlogin';
+	var analyzer = undefined;
+
+	var analyzerCmd = function (args) {
+		var cmd = 'export THOTH_ANALYZER=/var/tmp/' + analyzer + '\n';
+		var path = [ thoth.analyzers, analyzer ].join('/');
+		var analyze = 'cat \\$THOTH_ASSET \\$THOTH_ANALYZER | bash';
+
+		args = args.concat([ '-s', path ]);
+
+		cmd += 'orig=/var/tmp/' + analyzer + '.orig\n';
+		cmd += 'mget ' + path + ' > $THOTH_ANALYZER 2> /dev/null\n';
+		cmd += 'if [[ $? -ne 0 ]]; then\n';
+		cmd += '	echo "thoth: ' + analyzer + ' not found"\n';
+		cmd += '	exit 1\n';
+		cmd += 'fi\n';
+		cmd += 'cp $THOTH_ANALYZER $orig\n';
+		cmd += 'chmod +x $THOTH_ANALYZER\n';
+
+		cmd += 'echo "thoth: analyzer \\"' + analyzer + '\\" is in ' +
+		    '\\$THOTH_ANALYZER"\n';
+		cmd += 'echo "thoth: run \\\"thoth_analyze\\\" to run ' +
+		    '\\$THOTH_ANALYZER"\n';
+		cmd += 'echo "thoth: any changes to \\$THOTH_ANALYZER will ' +
+		    'be stored upon successful exit"\n';
+		cmd += 'echo "alias thoth_analyze=\\\"' + analyze +
+		    '\\\"" >> ~/.bashrc\n';
+		cmd += 'if ! bash -i; then\n';
+		cmd += '	exit $?\n';
+		cmd += 'fi\n';
+		cmd += 'if cmp $THOTH_ANALYZER $orig > /dev/null 2>&1; then\n';
+		cmd += '	exit 0\n';
+		cmd += 'fi\n';
+		cmd += 'echo "thoth: storing changes to \\$THOTH_ANALYZER"\n';
+		cmd += 'mput -f $THOTH_ANALYZER ' + path + ' 2> /dev/null\n';
+		cmd += 'echo "thoth: done"\n';
+
+		return (cmd);
+	};
+
+	var debug = function (dump) {
+		if (dump instanceof Array) {
+			if (dump.length > 1) {
+				fatal('specification matches ' + dump.length +
+				    ' dumps; cannot debug interactively');
+			}
+
+			dump = dump[0];
+		}
+
+		status('debugging ' +
+		    mod_path.basename(mod_path.dirname(dump.dump)));
+
+		var info = dump.name + '/info.json';
+		var cmd = 'echo "thoth: dump info is in \\$THOTH_INFO"\n';
+
+		var args = [ dump.dump ];
+
+		var dummy = { phases: [ {} ] };
+		jobSetThoth(dummy);
+		cmd += dummy.phases[0].init + '\n';
+
+		if (analyzer) {
+			cmd += analyzerCmd(args);
+		} else {
+			cmd += 'mdb $MANTA_INPUT_FILE';
+		}
+
+		setAnalyzer(client, cmd, function (asset) {
+			args = args.concat([ '-s', asset,
+			    '-s', dummy.phases[0].assets[0],
+			    '-c', '/assets/' + asset,
+			    '--memory=2048' ]);
+
+			var child = mod_child.spawn(mlogin, args,
+			    { stdio: 'inherit' });
+
+			child.on('close', function (code) {
+				status('debugger exited with code ' + code);
+
+				client.unlink(asset, function (err) {
+					checkError(err);
+					process.exit(code);
+				});
+			});
+		}, { loadv8: analyzer ? false : true });
+	};
+
+	if (argv.length > 1 && argv[argv.length - 1].indexOf('=') == -1)
+		analyzer = argv.pop();
+
+	if (argv.length == 1 && argv[0].indexOf('=') == -1) {
+		infoGet(client, argv[0], debug);
+	} else {
+		dumpsFromSpec(argv, { fields: [ 'dump' ] }, debug);
+	}
+}
+
+handlers.index = function (client, argv)
+{
+	var scanComplete = false;
+	var id, time;
+	var seen = {};
+
+	var job = { phases: [ {
+		type: 'map',
+		exec: 'DTRACE_DOF_INIT_DISABLE=1 ' +
+		    jobExecThoth('$MANTA_INPUT_FILE')
+	} ] };
+
+	jobSetThoth(job);
+
+	for (i = 0; i < argv.length; i++) {
+		var filter = argv[i].split('=');
+
+		if (filter.length != 2 || filter[0] != 'mtime' || i != 0)
+			fatal('index specification must be "mtime=age"');
+
+		time = parseAge(filter[1]);
+	}
+
+	var filter = undefined;
+	if (time) {
+		status('indexing dumps since ' +
+		    (new Date(time * 1000)).toISOString());
+
+		/*
+		 * When "time" ordering is specified, directory entries are
+		 * retrieved from Manta in reverse order; i.e., from the newest
+		 * entry to the oldest entry.
+		 */
+		filter = function (ent, stop) {
+			var ts = ((new Date(ent.mtime)).valueOf() / 1000);
+
+			if (ts >= time) {
+				/*
+				 * This dump is more recent than the cutoff and
+				 * should be included.
+				 */
+				return (true);
+			}
+
+			/*
+			 * This dump, and all subsequent dumps, are older than
+			 * the cutoff time.  Halt the stream now.
+			 */
+			stop();
+			return (false);
+		};
+	} else {
+		status('indexing all dumps');
+	}
+
+	var readDir = function () {
+		var ls = new ThothListStream({
+			manta: client,
+			path: thoth.path,
+			time: !!time,
+			filter: filter
+		});
+
+		ls.on('error', checkError);
+
+		ls.pipe(mapStream(function (ent, push, next) {
+			var add = function (what) {
+				var path = mod_path.join(thoth.path, what);
+				if (seen.hasOwnProperty(path))
+					return;
+				seen[path] = true;
+				push(path);
+			};
+
+			switch (ent.type) {
+			case 'object':
+				if (!endsWith(ent.name, thoth.unindexed)) {
+					break;
+				}
+				add(ent.name.substr(0, ent.name.indexOf(
+				    thoth.unindexed)) + '/info.json');
+				break;
+
+			case 'directory':
+				if (ent.name.length !== thoth.hashlen) {
+					break;
+				}
+				add(mod_path.join(ent.name, 'info.json'));
+				break;
+			}
+
+			next();
+
+		})).pipe(batchStream(250)).pipe(forEachStream(function (keys,
+		    next) {
+			client.addJobKey(id, keys, function (err) {
+				checkError(err);
+				next();
+			});
+
+		}, function (err, res) {
+			checkError(err);
+			client.endJob(id, function (err) {
+				checkError(err);
+				jobWait(client, id, jobOutput(client, alldone));
+			});
+		}));
+	};
+
+	/*
+	 * Before we create a job, make sure that we can connect to the
+	 * database.
+	 */
+	mod_r.connect(thoth.db, function (err, conn) {
+		if (err) {
+			fatal('couldn\'t connect to database: ' +
+			    err.message);
+		}
+
+		client.createJob(job, function (err, jobid) {
+			checkError(err);
+			status('created job ' + (id = jobid));
+			readDir();
+		});
+	});
+
+	var alldone = function () {
+		status('indexed ' + Object.keys(seen).length + ' dumps');
+		process.exit(0);
+	};
+}
+
+/*
+ * In the past, there were some bugs in the thoth upload path that caused
+ * corruption in the "info.json" object.  The "psargs" property in this
+ * object could contain unescaped double quotes, causing the file to fail to
+ * parse.  A second stage of the upload process wrote the "properties"
+ * property to that same object, appending it as a second (well-formed) JSON
+ * object in the same file.
+ *
+ * This function will either correct this specific pathology and return an
+ * object, or fail and return null.
+ */
+function
+pathologyOne(input)
+{
+	mod_assert.equal(typeof (input), 'string');
+	var lines = input.split('\n');
+
+	if (lines.length < 10) {
+		/*
+		 * This file has too few lines to have been generated by this
+		 * bug.
+		 */
+		return (null);
+	}
+
+	if (lines[0] !== '{') {
+		/*
+		 * This is probably not a JSON object.
+		 */
+		return (null);
+	}
+
+	/*
+	 * Split out the first JSON object within the input:
+	 */
+	var data = '';
+	var o;
+	while (lines.length > 0) {
+		var l = lines.shift();
+		var m;
+
+		/*
+		 * Attempt to match a JSON property key-value pair on its
+		 * own line:
+		 */
+		/*JSSTYLED*/
+		if ((m = l.match(/^\s*"([a-z]+)": *"(.*)",$/))) {
+			if (m[1] === 'psargs' && m[2].indexOf('"') !== -1) {
+				/*
+				 * This is the "psargs" property that requires
+				 * correct quote escaping.
+				 */
+				data += '  "' + m[1] + '": "' +
+				    /*JSSTYLED*/
+				    m[2].replace(/"/g, '\\"') + '",\n';
+				continue;
+			}
+		}
+
+		/*
+		 * Attempt to parse the input we have seen so far.  If parsing
+		 * is successful, we have isolated the first object in the file.
+		 */
+		data += l + '\n';
+		try {
+			o = JSON.parse(data);
+			break;
+		} catch (ex) {
+		}
+	}
+
+	/*
+	 * Check the parsed object to ensure it has an _empty_ "properties"
+	 * object.  We also make sure we have just two more entries in the
+	 * array: the real "properties" object, and the final blank.
+	 */
+	if (!o || !o.hasOwnProperty('properties') ||
+	    Object.keys(o.properties).length > 0 || lines.length !== 2) {
+		return (null);
+	}
+
+	var o2;
+	try {
+		o2 = JSON.parse(lines.join('\n'));
+	} catch (ex) {
+		return (null);
+	}
+	var k2 = Object.keys(o2);
+
+	/*
+	 * The second object in the file must have _only_ a "properties"
+	 * property, and nothing else.
+	 */
+	if (k2.length !== 1 || k2[0] !== 'properties') {
+		return (null);
+	}
+
+	o.properties = o2.properties;
+
+	return (o);
+}
+
+handlers.scrub = function (client, argv)
+{
+	var again = false, done = false, time = undefined;
+	var lsopts = { query: { sort: 'mtime' }, limit: 1000 };
+	var seen = {};
+	var last = undefined, oldest;
+	var id, time;
+	var keys = [];
+	var nprocessed = 0, total = 0;
+	var parallelism = 10, outstanding = 0;
+	var filter, indexes = false;
+
+	for (var i = 0; i < argv.length; i++) {
+		if (argv[i].indexOf('=') !== -1) {
+			filter = argv[i].split('=');
+		} else if (argv[i] === 'indexes') {
+			indexes = true;
+		} else {
+			fatal('scrub: unexpected argument "' + argv[i] + '"');
+		}
+	}
+
+	if (!filter || filter.length !== 2 || filter[0] != 'mtime')
+		fatal('age must be specified as "mtime=age"');
+
+	time = parseAge(filter[1]);
+	status('scrubbing artifacts from before ' +
+	    (new Date(time * 1000)).toISOString());
+
+	/*
+	 * When "time" ordering is specified, directory entries are retrieved
+	 * from Manta in reverse order; i.e., from the newest entry to the
+	 * oldest entry.  Adding the "reverse" option reverse this sort,
+	 * starting our directory list at the _oldest_ file and walking
+	 * forwards in time.
+	 */
+	var ls = new ThothListStream({
+		manta: client,
+		path: thoth.path,
+		type: 'object',
+		time: true,
+		reverse: true,
+		filter: function (ent, stop) {
+			var ts = ((new Date(ent.mtime)).valueOf() / 1000);
+
+			mod_assert.ok(ent.type === 'object');
+
+			/*
+			 * We do _not_ want to clean dumps that were created
+			 * _after_ the cutoff time.  As our walk is moving
+			 * forwards in time, we can also stop walking dumps
+			 * here.
+			 */
+			if (ts >= time) {
+				stop();
+				return (false);
+			}
+
+			/*
+			 * Only objects which match the indexing artefact
+			 * pattern are eligible.
+			 */
+			if (!ent.name.match(thoth.unindexed + '$')) {
+				return (false);
+			}
+
+			return (true);
+		}
+	});
+
+	ls.on('error', checkError);
+
+	ls.pipe(mapStream(function (ent, push, next) {
+		var hash = ent.name.replace(new RegExp(thoth.unindexed + '$'),
+		    '');
+		mod_assert.notEqual(hash, ent.name);
+
+		if (hash.length !== thoth.hashlen) {
+			fatal('invalid hash: ' + hash);
+		}
+
+		var tc = {
+			tc_hash: hash,
+			tc_ent: ent,
+			tc_primary: null,
+			tc_primary_raw: null,
+			tc_unindexed: null,
+			tc_errors: [],
+			tc_need_primary_write: false
+		};
+
+		/*
+		 * Collect the contents of the thoth JSON file.
+		 */
+		var hashpath = mod_path.join(thoth.path, hash, 'info.json');
+		var hashdata = '';
+		var instr = client.createReadStream(hashpath);
+		instr.on('error', checkError);
+		instr.on('readable', function () {
+			var d;
+			while ((d = instr.read()) !== null) {
+				hashdata += d.toString();
+			}
+		});
+		instr.on('end', function () {
+			tc.tc_primary_raw = hashdata;
+			try {
+				tc.tc_primary = JSON.parse(hashdata);
+			} catch (ex) {
+				if ((tc.tc_primary = pathologyOne(
+				    hashdata)) !== null) {
+					tc.tc_need_primary_write = true;
+				} else {
+					tc.tc_errors.push('object "' +
+					    hashpath + '" has invalid JSON: ' +
+					    ex.toString());
+				}
+			}
+			push(tc);
+			next();
+		});
+	})).pipe(mapStream(function (tc, push, next) {
+		/*
+		 * Collect the contents of the unindexed JSON file.
+		 */
+		var path = mod_path.join(tc.tc_ent.parent, tc.tc_ent.name);
+		var instr = client.createReadStream(path);
+		var data = '';
+		instr.on('error', checkError);
+		instr.on('readable', function () {
+			var d;
+			while ((d = instr.read()) !== null) {
+				data += d.toString();
+			}
+		});
+		instr.on('end', function () {
+			try {
+				tc.tc_unindexed = JSON.parse(data);
+			} catch (ex) {
+				if ((tc.tc_unindexed = pathologyOne(data)) ===
+				    null) {
+					tc.tc_errors.push('object "' + path +
+					    '" has invalid JSON: ' +
+					    ex.toString());
+				}
+			}
+			push(tc);
+			next();
+		});
+	})).pipe(forEachStream(function (tc, next) {
+		var header = false;
+		var printHeader = function () {
+			if (header)
+				return;
+			header = true;
+
+			console.log('dump %s (mtime %s):', tc.tc_hash,
+			    tc.tc_ent.mtime);
+		};
+
+		if (tc.tc_errors.length > 1) {
+			printHeader();
+			console.log();
+			for (var i = 0; i < tc.tc_errors.length; i++) {
+				var tce = tc.tc_errors[i];
+
+				console.log('\terror: %s', tce);
+			}
+			console.log();
+			next();
+			return;
+		}
+
+		if (tc.tc_need_primary_write) {
+			printHeader();
+			console.log('\tinfo.json needs to be flushed from ' +
+			    'reconstructed copy');
+		}
+
+		mod_assert.ok(tc.tc_primary);
+		mod_assert.equal(typeof (tc.tc_primary), 'object');
+		mod_assert.ok(tc.tc_unindexed);
+		mod_assert.equal(typeof (tc.tc_unindexed), 'object');
+
+		if (mod_jsprim.deepEqual(tc.tc_primary, tc.tc_unindexed)) {
+			if (indexes) {
+				/*
+				 * The "UUID-unindexed.json" file is the
+				 * same as the primary "info.json" file, and
+				 * may be removed.
+				 */
+				printHeader();
+				console.log('\tindexing artefact is safe ' +
+				    'to remove');
+			}
+		} else {
+			/*
+			 * The primary and the unindexed copy of the JSON are
+			 * _not_ identical.  Emit the differences between the
+			 * two objects:
+			 */
+			printHeader();
+			console.log();
+			console.log('DIFF: --- unindexed +++ primary');
+			var od = jsondiff.objectDiff(tc.tc_unindexed,
+			    tc.tc_primary);
+			jsondiff.printDiff(od, 'object');
+		}
+
+		if (header)
+			console.log();
+		next();
+
+	}, function (err) {
+		checkError(err);
+		process.exit(0);
+	}));
+};
+
+handlers.object = function (client, argv)
+{
+	openDump(argv[0], function (file) {
+		console.log(file.digest);
+		process.exit(0);
+	});
+}
+
+handlers.report = function (client, argv)
+{
+	var fields = [ argv.pop() ];
+	var nested;
+
+	if (!fields[0])
+		fatal('must supply an aggregation property');
+
+	if (fields[0].indexOf('=') != -1) {
+		argv.push(fields.pop());
+	} else {
+		nested = fields[0].split('.');
+
+		if (nested.length > 1) {
+			var i = nested.length - 1;
+			var val = true;
+
+			while (i >= 0) {
+				var o = new Object();
+				o[nested[i--]] = val;
+				val = o;
+			}
+
+			fields = [ val ];
+		}
+	}
+
+	dumpsFromSpec(argv, { fields: fields, group: true }, function (dumps) {
+		var i, j, output = {}, val;
+
+		if (fields.length == 0) {
+			console.log(dumps);
+			process.exit(0);
+		}
+
+		for (i = 0; i < dumps.length; i++) {
+			group = dumps[i].group;
+
+			if (nested.length > 1) {
+				for (j = 0; j < nested.length; j++) {
+					if (!group.hasOwnProperty(nested[j]))
+						break;
+
+					group = group[nested[j]];
+				}
+
+				if (j < nested.length)
+					continue;
+			}
+
+			output[group] = dumps[i].reduction;
+		}
+
+		console.log(JSON.stringify(output, null, 4));
+		process.exit(0);
+	});
+};
+
+var setProp = function (client, keys, prop, val, sysprop)
+{
+	var tmp = '/tmp/tmp.json';
+	var json = '/tmp/new.json';
+	var prefix = '', suffix = '';
+
+	var cmd = 'cat > ' + tmp + ' <<EOF\n';
+
+	if (!sysprop) {
+		prefix = '{ "properties": ';
+		suffix = '} ';
+	}
+
+	cmd += prefix + '{ "' + prop + '": ';
+	cmd += JSON.stringify(val);
+
+	cmd += '} ' + suffix + '\nEOF\n';
+
+	cmd += 'cat $MANTA_INPUT_FILE ' + tmp + ' | json --deep-merge > ' +
+	    json + ';';
+	cmd += 'mput -f ' + json + ' $MANTA_INPUT_OBJECT ;';
+	cmd += jobExecThoth(json) + ' || ' +
+	    'mln $MANTA_INPUT_OBJECT ' + thoth.path + '/' +
+	    '`basename $(dirname $MANTA_INPUT_OBJECT)`' + thoth.unindexed;
+
+	jobOneKey(client, keys, cmd,
+	    function () { process.exit(0) }, jobSetThoth);
+}
+
+var unsetProp = function (client, keys, prop, sysprop)
+{
+	var json = '/tmp/new.json';
+	var cmd = 'cat $MANTA_INPUT_FILE | json -e "this.' +
+	    (sysprop ? '' : 'properties.') +
+	    prop + '=undefined" > ' + json + '; ';
+	cmd += 'mput -f ' + json + ' $MANTA_INPUT_OBJECT ;';
+	cmd += jobExecThoth(json) + ' || ' +
+	    'mln $MANTA_INPUT_OBJECT ' + thoth.path + '/' +
+	    '`basename $(dirname $MANTA_INPUT_OBJECT)`' + thoth.unindexed;
+
+	jobOneKey(client, keys, cmd,
+	    function () { process.exit(0) }, jobSetThoth);
+}
+
+var partialArgToInfo = function (arg, cb, errcb)
+{
+	mod_r.connect(thoth.db, function (err, conn) {
+		if (err) {
+			if (errcb) {
+				errcb(err);
+				return;
+			}
+
+			fatal('couldn\'t connect to database: ' + err.message);
+		}
+
+		mod_r.table(thoth.db.table).between(arg, arg + 'z').run(conn,
+		    function (err, cursor) {
+			if (err) {
+				fatal('couldn\'t query ' + arg + ': ' +
+				    err.message);
+			}
+
+			cursor.toArray(function (err, results) {
+				if (results.length == 1) {
+					cb(results[0]);
+					return;
+				}
+
+				if (results.length > 1) {
+					var i, res = [];
+
+					for (i = 0; i < results.length; i++)
+						res.push(results[i].id);
+
+					fatal('"' + arg + '" matches more ' +
+					    'than one dump: ' +
+					    res.join(', '));
+				}
+
+				if (errcb) {
+					errcb();
+					return;
+				}
+
+				fatal(arg + ' does not match any dumps');
+			});
+		});
+	});
+}
+
+var argToInfo = function (client, arg, cb, bypass)
+{
+	var object = [ thoth.path, arg, 'info.json' ].join('/');
+
+	var trylocal = function (err) {
+		openDump(arg, function (file) {
+			argToInfo(client, file.digest, cb, bypass);
+			return;
+		}, function () {
+			/*
+			 * Our info doesn't exist and it doesn't
+			 * correspond to a file on the local file
+			 * system; to allow callers to differentiate
+			 * between this case and any other error, we
+			 * return with a special exit code (2).
+			 */
+			fatal(err.toString(), 2);
+		});
+	};
+
+	var tryManta = function (err) {
+		if (!client)
+			client = connect();
+
+		client.get(object, function (err, stream, res) {
+			if (err && err.code == 'ResourceNotFound') {
+				/*
+				 * If we didn't find it in Manta, try to find
+				 * it locally.
+				 */
+				trylocal(err);
+				return;
+			}
+
+			checkError(err);
+
+			cb(object, err, stream, res);
+		});
+	};
+
+	if (bypass)
+		return (tryManta());
+
+	/*
+	 * First, hit the database.  If that fails, try Manta...
+	 */
+	partialArgToInfo(arg, cb, tryManta);
+}
+
+var dumpToInfoPath = function (dump)
+{
+	if (typeof (dump) == 'string')
+		return (dump);
+
+	return ([ dump.name, 'info.json'].join('/'));
+}
+
+var setV8 = function (opts)
+{
+	var cmd = '';
+
+	cmd = 'if [[ `cat $THOTH_INFO | json cmd` == "node" ]]; then\n';
+	cmd += '	THOTH_V8_32=mdb_v8_ia32.so\n';
+	cmd += '	THOTH_V8_64=mdb_v8_amd64.so\n';
+	cmd += '	THOTH_V8_DIR=/root/mdb\n';
+	cmd += '	THOTH_V8_DIR_64=/root/mdb/amd64\n';
+	cmd += '	THOTH_V8_LATEST=/Joyent_Dev/public/mdb_v8/latest\n';
+	cmd += '\n';
+	cmd += '	if [[ ! -d $THOTH_V8_DIR ]]; then\n';
+	cmd += '		mkdir $THOTH_V8_DIR\n';
+	cmd += '		mkdir $THOTH_V8_DIR_64\n';
+	cmd += '	fi\n';
+	cmd += '\n';
+	cmd += '	if [[ ! -f $THOTH_V8_DIR/v8.so ]]; then\n';
+	cmd += '		THOTH_V8_LATEST=`mget -q ' +
+	    thoth.v8 + '`\n';
+	cmd += '		mget -q $THOTH_V8_LATEST/$THOTH_V8_32 ' +
+	    '> $THOTH_V8_DIR/v8.so\n';
+	cmd += '		mget -q $THOTH_V8_LATEST/$THOTH_V8_64 ' +
+	    '> $THOTH_V8_DIR_64/v8.so\n';
+	cmd += '	fi\n';
+	cmd += '\n';
+	cmd += '	if [[ ! -f ~/.mdbrc ]]; then\n';
+	cmd += '		echo "::set -L /root/mdb:/usr/lib/mdb/proc" ' +
+	    '> ~/.mdbrc\n';
+
+	if (opts && opts.loadv8)
+		cmd += '		echo "::load v8.so" >> ~/.mdbrc\n';
+
+	cmd += '	fi\n';
+	cmd += 'fi\n';
+
+	return (cmd);
+};
+
+var setAnalyzer = function (client, exec, cb, opts)
+{
+	var cmd = '';
+
+	if (thoth.analyzerdebug)
+		cmd += 'set -o xtrace\n';
+
+	cmd += 'thoth_fatal()\n';
+	cmd += '{\n';
+	cmd += '	echo thoth: "$*" 1>&2\n';
+	cmd += '	exit 1\n';
+	cmd += '}\n\n';
+
+	cmd += 'thoth_onexit()\n';
+	cmd += '{\n';
+	cmd += '	[[ $1 -ne 0 ]] || exit 0\n';
+	cmd += '	thoth_fatal "error exit status $1"\n';
+	cmd += '}\n\n';
+
+	cmd += 'thoth_set()\n';
+	cmd += '{\n';
+	cmd += '	local prop=$1\n';
+	cmd += '	local propfile=/tmp/thoth.prop\n';
+	cmd += '	local propout=/tmp/thoth.out\n';
+	cmd += '	if [[ "$#" -lt 1 ]]; then\n';
+	cmd += '		thoth_fatal "failed to specify property"\n';
+	cmd += '	fi\n\n';
+	cmd += '	if [[ "$#" -eq 2 ]]; then\n';
+	cmd += '		local propval="$2"\n';
+	cmd += '	else\n';
+	cmd += '		local propval=`cat | ';
+	cmd += ' sed \'s/\\\\\\\\/\\\\\\\\\\\\\\\\/g\'';
+	cmd += ' | ';
+	cmd += ' sed \'s/"/\\\\\\\\"/g\' | ';
+	cmd += ' sed \':a;N;$!ba;s/\\\\n/\\\\\\\\n/g\'`\n';
+	cmd += '	fi\n\n';
+
+	cmd += '	echo "{ \\"properties\\": { \\"$prop\\": ';
+	cmd += '\\"$propval\\" } }" > $propfile\n';
+	cmd += '	mget $THOTH_INFO_OBJECT > $THOTH_INFO\n';
+	cmd += '	cat $THOTH_INFO $propfile | json --deep-merge ';
+	cmd += ' > $propout\n';
+	cmd += '	mput -f $propout $THOTH_INFO_OBJECT\n';
+	cmd += '	' + jobExecThoth('$propout') + ' || ' +
+	    'mln $THOTH_INFO_OBJECT $THOTH_UNINDEXED_OBJECT\n';
+	cmd += '}\n\n';
+
+	cmd += 'thoth_unset()\n';
+	cmd += '{\n';
+	cmd += '	local propout=/tmp/thoth.out\n';
+	cmd += '	if [[ "$#" -lt 1 ]]; then\n';
+	cmd += '		thoth_fatal "failed to specify property"\n';
+	cmd += '	fi\n\n';
+	cmd += '	mget $THOTH_INFO_OBJECT > $THOTH_INFO\n';
+	cmd += '	cat $THOTH_INFO | json -e ';
+	cmd += '"this.properties.$1=undefined" > $propout\n';
+	cmd += '	mput -f $propout $THOTH_INFO_OBJECT\n';
+	cmd += '	' + jobExecThoth('$propout') + ' || ' +
+	    'mln $THOTH_INFO_OBJECT $THOTH_UNINDEXED_OBJECT\n';
+	cmd += '}\n\n';
+
+	cmd += 'thoth_ticket()\n';
+	cmd += '{\n';
+	cmd += '	local propfile=/tmp/thoth.prop\n';
+	cmd += '	local propout=/tmp/thoth.out\n';
+	cmd += '	if [[ "$#" -lt 1 ]]; then\n';
+	cmd += '		thoth_fatal "failed to specify ticket"\n';
+	cmd += '	fi\n\n';
+	cmd += '	echo "{ \\"ticket\\": \\"$1\\" }" > $propfile\n';
+	cmd += '	mget $THOTH_INFO_OBJECT > $THOTH_INFO\n';
+	cmd += '	cat $THOTH_INFO $propfile | json --deep-merge ';
+	cmd += ' > $propout\n';
+	cmd += '	mput -f $propout $THOTH_INFO_OBJECT\n';
+	cmd += '	' + jobExecThoth('$propout') + ' || ' +
+	    'mln $THOTH_INFO_OBJECT $THOTH_UNINDEXED_OBJECT\n';
+	cmd += '}\n\n';
+
+	cmd += 'thoth_unticket()\n';
+	cmd += '{\n';
+	cmd += '	local propout=/tmp/thoth.out\n';
+	cmd += '	mget $THOTH_INFO_OBJECT > $THOTH_INFO\n';
+	cmd += '	cat $THOTH_INFO | json -e "this.ticket=undefined"';
+	cmd += ' > $propout\n';
+	cmd += '	mput -f $propout $THOTH_INFO_OBJECT\n';
+	cmd += '	' + jobExecThoth('$propout') + ' || ' +
+	    'mln $THOTH_INFO_OBJECT $THOTH_UNINDEXED_OBJECT\n';
+	cmd += '}\n\n';
+
+	var asset = thoth.analyzers + '/.thoth.' + process.pid + '.' +
+	    (new Date().valueOf() / 1000);
+
+	cmd += 'if [[ -z "$THOTH_DUMP" ]]; then\n';
+	cmd += '	export DTRACE_DOF_INIT_DISABLE=1\n';
+	cmd += '	export THOTH_DUMP=$MANTA_INPUT_FILE\n';
+	cmd += '	THOTH_NAME=`basename $(dirname $MANTA_INPUT_FILE)`\n';
+	cmd += '	export THOTH_NAME\n';
+	cmd += '	export THOTH_INFO=/var/tmp/info.json\n';
+	cmd += '	THOTH_DIR=`dirname $MANTA_INPUT_OBJECT`\n';
+	cmd += '	export THOTH_INFO_OBJECT=${THOTH_DIR}/info.json\n'
+	cmd += '	mget $THOTH_INFO_OBJECT > $THOTH_INFO 2> /dev/null\n\n';
+	cmd += '	export THOTH_TYPE=`cat $THOTH_INFO | json type`\n';
+	cmd += '	export THOTH_ASSET_OBJECT=' + asset + '\n';
+	cmd += '	export THOTH_ASSET=/assets/' + asset + '\n';
+	cmd += '	echo "source $THOTH_ASSET" > ~/.bashrc\n';
+	cmd += '	echo "PS1=\\\"${MANTA_USER}@thoth # \\\"" >> ' +
+			    '~/.bashrc\n';
+	cmd += '	export THOTH_UNINDEXED_OBJECT=${THOTH_DIR}' +
+			    thoth.unindexed + '\n\n';
+	cmd += setV8(opts);
+
+	cmd += '	' + exec + '\n';
+	cmd += 'fi\n';
+
+	/*
+	 * Create a simple Readable to mput our string.
+	 */
+	util.inherits(Analyzer, Readable);
+
+	function Analyzer(str) {
+		Readable.call(this);
+		this.str = str;
+	};
+
+	Analyzer.prototype._read = function () {
+		if (this.str) {
+			var buf = new Buffer(this.str, 'ascii');
+			this.push(buf);
+			this.str = null;
+		} else {
+			this.push(null);
+		}
+	};
+
+	var analyzer = new Analyzer(cmd);
+
+	client.put(asset, analyzer, function (err) {
+		checkError(err);
+		cb(asset);
+	});
+}
+
+var runAnalyzer = function (client, keys, analyzer)
+{
+	var cmd = 'cat $THOTH_ASSET /assets/' + analyzer + ' | bash\n';
+
+	setAnalyzer(client, cmd, function (asset) {
+		var preflight = function (job) {
+			job.phases[0].assets = [ asset, analyzer ];
+			job.phases.push({ exec: 'cat', type: 'reduce' });
+			jobSetThoth(job);
+		};
+
+		var done = function (output) {
+			console.log(output);
+			client.unlink(asset, function (err) {
+				checkError(err);
+				process.exit(0);
+			});
+		}
+
+		jobOneKey(client, keys, 'bash < /assets/' + asset,
+		    jobOutput(client, done), preflight);
+	});
+}
+
+var processAnalyzers = function (analyzers)
+{
+	var all = [], i;
+
+	for (analyzer in analyzers)
+		all.push(analyzers[analyzer].path);
+
+	all.sort();
+
+	for (i = 0; i < all.length; i++)
+		console.log(all[i]);
+};
+
+handlers.set = function (client, argv, sysprop)
+{
+	var i, val, prop, keys = [];
+
+	function parseVal(val) {
+		if (!val) {
+			warn('value for \'' + prop + '\' not set ' +
+			    'on command line; reading JSON from stdin');
+
+			var maxval = 64 * 1024;
+			var buf = new Buffer(maxval);
+			var nbytes = mod_fs.readSync(0, buf, 0, maxval, 0);
+
+			val = JSON.parse(buf.toString('utf8', 0, nbytes));
+		} else {
+			try {
+				val = JSON.parse(val);
+			} catch (err) {}
+		}
+
+		return (val);
+	}
+
+	if (argv[0].indexOf('=') == -1) {
+		argToInfo(client, argv[0], function (dump) {
+			var path = dumpToInfoPath(dump);
+
+			if (argv.length < 2)
+				fatal('expected property to set');
+
+			prop = argv[1];
+
+			val = parseVal(argv.length >= 3 ? argv[2] : undefined);
+			setProp(client, [ path ], prop, val, sysprop);
+		});
+
+		return;
+	}
+
+	for (i = 0; i < argv.length; i++) {
+		if (argv[i].indexOf('=') != -1)
+			continue;
+
+		prop = argv[i];
+		val = parseVal(i < argv.length - 1 ? argv[i + 1] : undefined);
+
+		break;
+	}
+
+	argv.pop();
+
+	if (i < argv.length)
+		argv.pop();
+
+	dumpsFromSpec(argv, { fields: [ 'name' ] }, function (dumps) {
+		for (dump in dumps)
+			keys.push([ dumps[dump].name, 'info.json' ].join('/'));
+
+		setProp(client, keys, prop, val, sysprop);
+	});
+}
+
+handlers.unset = function (client, argv, sysprop)
+{
+	var prop = argv.pop();
+	var keys = [];
+
+	if (!prop)
+		fatal('expected a property to unset');
+
+	if (argv.length == 1 && argv[0].indexOf('=') == -1) {
+		argToInfo(client, argv[0], function (dump) {
+			var path = dumpToInfoPath(dump);
+			unsetProp(client, [ path ], prop, sysprop);
+		});
+
+		return;
+	}
+
+	dumpsFromSpec(argv, { fields: [ 'name' ] }, function (dumps) {
+		for (dump in dumps)
+			keys.push([ dumps[dump].name, 'info.json' ].join('/'));
+
+		unsetProp(client, keys, prop, sysprop);
+	});
+};
+
+handlers.ticket = function (client, argv)
+{
+	if (argv.length < 2)
+		fatal('need both dump specification and ticket');
+
+	var ticket = argv.pop();
+
+	if (ticket.indexOf('=') != -1) {
+		/*
+		 * This is almost certanly an error in that the user has
+		 * offered a specification without a ticket.  We explicitly
+		 * reject this to prevent mass mis-ticketing!
+		 */
+		fatal('\'' + ticket + '\' is not a valid ticket');
+	}
+
+	argv.push('ticket');
+	argv.push(ticket);
+
+	return (handlers.set(client, argv, true));
+};
+
+handlers.unticket = function (client, argv)
+{
+	argv.push('ticket');
+
+	return (handlers.unset(client, argv, true));
+}
+
+handlers.analyzer = function (client, argv)
+{
+	var remove = true;
+	var analyzer, msg;
+
+	if (argv.length != 1)
+		fatal('analyzers must be named');
+
+	analyzer = thoth.analyzers + '/' + argv[0];
+	msg = 'analyzer \'' + argv[0] + '\'';
+
+	warn('reading ' + msg + ' from stdin');
+
+	/*
+	 * We want to be sure to pause stdin after adding the 'data' listener
+	 * to assure that this code works on v0.8 and v0.10+ alike.
+	 */
+	process.stdin.on('data', function () { remove = false; });
+	process.stdin.pause();
+
+	client.mkdirp(thoth.analyzers, function (err) {
+		checkError(err);
+
+		client.put(analyzer, process.stdin, function (err) {
+			checkError(err);
+
+			if (remove) {
+				warn('removing ' + msg);
+				client.unlink(analyzer, function (err) {
+					checkError(err);
+					warn('removed ' + msg);
+					process.exit(0);
+				});
+			} else {
+				warn('added ' + msg);
+				process.exit(0);
+			}
+		});
+	});
+}
+
+handlers.analyzers = function (client, argv)
+{
+	var analyzers = {}, i;
+	var outstanding = 1;
+
+	var done = function () {
+		if (--outstanding > 0)
+			return;
+
+		processAnalyzers(analyzers);
+		process.exit(0);
+	};
+
+	var get = function (analyzer) {
+		var name = mod_path.basename(analyzer);
+
+		outstanding++;
+
+		analyzers[name] = { data: '', path: analyzer };
+
+		client.get(analyzer, function (err, stream, res) {
+			checkError(err);
+
+			stream.on('data', function (data) {
+				analyzers[name].data += data;
+			});
+
+			stream.on('end', function () { done(); });
+		});
+	};
+
+	client.ls(thoth.analyzers, function (err, res) {
+		checkError(err);
+
+		res.on('object', function (obj) {
+			var analyzer = thoth.analyzers + '/' + obj.name;
+
+			if (obj.name.indexOf('.thoth.') == 0) {
+				var age = new Date().valueOf() -
+				    new Date(obj.mtime).valueOf();
+
+				if (age / 1000 < 3600)
+					return;
+
+				/*
+				 * This is a stale analyzer that has somehow
+				 * been left around; blow it away.
+				 */
+				warn('removing stale analyzer ' + obj.name);
+				outstanding++;
+
+				client.unlink(analyzer, function (err) {
+					checkError(err);
+					done();
+				});
+
+				return;
+			}
+
+			get(analyzer);
+		});
+
+		res.on('error', function (err) {
+			if (err.code == 'ResourceNotFound')
+				process.exit(0);
+		});
+
+		res.on('end', function () { done(); });
+	});
+};
+
+handlers.analyze = function (client, argv)
+{
+	var analyzer = argv.pop();
+
+	if (!analyzer)
+		fatal('need to specify an analyzer');
+
+	if (analyzer.indexOf('/') != 0)
+		analyzer = thoth.analyzers + '/' + analyzer;
+
+	if (argv.length == 1 && argv[0].indexOf('=') == -1) {
+		infoGet(client, argv[0], function (output) {
+			runAnalyzer(client, [ output.dump ], analyzer);
+		});
+
+		return;
+	}
+
+	dumpsFromSpec(argv, { fields: [ 'dump' ] }, function (dumps) {
+		var dump, keys = [];
+
+		for (dump in dumps)
+			keys.push(dumps[dump].dump);
+
+		runAnalyzer(client, keys, analyzer);
+	});
+};
+
+loadAutoanalyzers = function (cb)
+{
+	mod_r.connect(thoth.db, function (err, conn) {
+		if (err)
+			fatal('couldn\'t connect to database: ' + err.message);
+
+		mod_r.table('analyzers').run(conn, function (err, cursor) {
+			cursor.toArray(function (err, results) {
+				cb(results);
+			});
+		});
+	});
+};
+
+flattenAutoanalyzers = function (cb)
+{
+	var i, analyzers = {};
+
+	loadAutoanalyzers(function (results) {
+		for (i = 0; i < results.length; i++)
+			analyzers[results[i].name] = results[i];
+
+		cb(analyzers);
+	});
+};
+
+planAutoanalyzers = function (analyzers, msg)
+{
+	var plan = [];
+	var i, j, dependency;
+
+	for (i in analyzers) {
+		analyzers[i].children = [];
+		analyzers[i].rank = 0;
+	}
+
+	for (i in analyzers) {
+		var analyzer = analyzers[i];
+		var dependencies = analyzers[i].dependencies;
+
+		if (!dependencies || dependencies.length == 0) {
+			analyzer.rank = plan.push(analyzer);
+			continue;
+		}
+
+		for (j = 0; j < analyzer.dependencies.length; j++) {
+			var dep = analyzer.dependencies[j];
+
+			if (!analyzers[dep]) {
+				fatal(msg + ': analyzer ' + analyzer.name +
+				    ' has unknown dependency "' + dep + '"');
+			}
+
+			analyzers[dep].children.push(analyzer);
+		}
+	}
+
+	for (i = 0; i < plan.length; i++) {
+		var children = plan[i].children;
+
+		for (j = 0; j < children.length; j++) {
+			if (children[j].rank != 0 &&
+			    children[j].rank <= plan[i].rank) {
+				/*
+				 * We have a dependency on us that is being
+				 * run before us in the plan; this can only
+				 * happen because there is a cycle in the
+				 * dependency graph.
+				 */
+				fatal(msg + ': cycle detected including ' +
+				    'autoanalyzers ' + plan[i].name +
+				    ' and ' + children[j].name);
+			}
+
+			if (children[j].rank == 0)
+				children[j].rank = plan.push(children[j]);
+		}
+	}
+
+	/*
+	 * Finally, look for any analyzers that haven't been planned -- they
+	 * are part of a clique.
+	 */
+	for (i in analyzers) {
+		if (analyzers[i].rank)
+			continue;
+
+		fatal(msg + 'cycle detected rooted at autoanalyzer ' + i);
+	}
+
+	return (plan);
+};
+
+autoanalyzers.run = function (client, argv)
+{
+	var analyzers = {}, i;
+
+	flattenAutoanalyzers(function (analyzers) {
+		planAutoanalyzers(analyzers);
+	});
+}
+
+autoanalyzers.ls = function (client, argv)
+{
+	var widths = {
+		name: 25,
+		'ticket/property': 20
+	}, w;
+
+	var print = function (analyzer) {
+		var output = '';
+
+		for (w in widths) {
+			var props = w.split('/');
+			var val = '-';
+			var j;
+
+			if (analyzer.hasOwnProperty(w)) {
+				val = analyzer[w];
+			} else {
+				for (j = 0; j < props.length; j++) {
+					if (analyzer.hasOwnProperty(props[j])) {
+						val = analyzer[props[j]];
+						break;
+					}
+				}
+			}
+
+			output += sprintf('%-' + widths[w] + 's', val);
+		}
+
+		console.log(output);
+	};
+
+	loadAutoanalyzers(function (results) {
+		var i;
+		var hdr = {};
+
+		results.sort(function (l, r) {
+			return (l.name.localeCompare(r.name));
+		});
+
+		for (w in widths)
+			hdr[w] = w.toUpperCase();
+
+		print(hdr);
+
+		for (i = 0; i < results.length; i++)
+			print(results[i]);
+
+		process.exit(0);
+	});
+};
+
+autoanalyzers.remove = function (client, argv)
+{
+	mod_r.connect(thoth.db, function (err, conn) {
+		var opts = { returnChanges: true };
+
+		if (err)
+			fatal('couldn\'t connect to database: ' + err.message);
+
+		mod_r.table('analyzers').get(argv[0]).delete(opts).run(conn,
+		    function (err, results) {
+			if (!err && results.deleted == 1) {
+				console.log(results);
+				process.exit(0);
+			}
+
+			fatal('couldn\'t remove "' +
+			    argv[0] + '": ' +
+			    (err ? err.message : 'not found'));
+		});
+	});
+};
+
+autoanalyzers.upload = function (client, argv)
+{
+	var str;
+	var analyzer;
+
+	try {
+		str = mod_fs.readFileSync(argv[0]);
+	} catch (err) {
+		fatal('couldn\'t read ' + argv[0] + ': ' + err);
+	}
+
+	var sandbox = mod_vm.createContext();
+
+	try {
+		mod_vm.runInContext(str, sandbox, { displayErrors: false })
+	} catch (err) {
+		fatal('failed to compile analyzer: ' + err);
+	}
+
+	analyzer = sandbox.analyzer;
+
+	if (!analyzer)
+		fatal('autoanalyzers must have an "analyzer" object');
+
+	if (typeof (analyzer) != 'object')
+		fatal('"analyzer" must be an object');
+
+	var required = {
+		name: '',
+	};
+
+	var optional = {
+		autoanalyze: true,
+		version: 0,
+		dependencies: [ '' ],
+		matches: [ {} ],
+		ticket: '',
+		property: ''
+	};
+
+	var check = function (fields) {
+		var f;
+
+		for (f in fields) {
+			if (!analyzer.hasOwnProperty(f)) {
+				if (fields === required) {
+					fatal('"analyzer" is missing ' +
+					     'required field "' + f + '"');
+				}
+
+				continue;
+			}
+
+			if (typeof (analyzer[f]) == typeof (fields[f])) {
+				if (typeof (analyzer[f]) != typeof ([]))
+					continue;
+
+				if (analyzer[f].length == 0)
+					continue;
+
+				for (i = 0; i < analyzer[f].length; i++) {
+					var t = typeof (analyzer[f][i]);
+
+					if (t == typeof (fields[f][0]))
+						continue;
+
+					break;
+				}
+
+				if (i == analyzer[f].length)
+					continue;
+
+				fatal('expected analyzer.' + f + ' to be an ' +
+				    'array of type ' + typeof (fields[f][0]) +
+				    '; ' + 'element ' + i + ' is of type ' + t);
+			}
+
+			fatal('expected analyzer.' + f + ' to be ' +
+			    'of type ' + typeof (required[f]) + '; ' +
+			    'found type ' + typeof (analyzer[f]));
+		}
+	};
+
+	check(required);
+	check(optional);
+
+	for (f in analyzer) {
+		if (required.hasOwnProperty(f) || optional.hasOwnProperty(f))
+			continue;
+
+		fatal('"analyzer" has unrecognized field "' + f + '"');
+	}
+
+	if (!analyzer.ticket && !analyzer.property)
+		fatal('analyzer must have "ticket" or "property" field');
+
+	analyzer.id = analyzer.name;
+
+	var insert = function () {
+		mod_r.connect(thoth.db, function (err, conn) {
+			if (err) {
+				fatal('couldn\'t connect to database: ' +
+				    err.message);
+			}
+
+			mod_r.table('analyzers').insert(analyzer,
+			    { conflict: 'replace' }).run(conn, done);
+		});
+	};
+
+	var done = function (err, results) {
+		if (!err) {
+			console.log(results);
+			process.exit(0);
+		}
+
+		fatal('couldn\'t insert ' + name + ': ' + err.message);
+	}
+
+	/*
+	 * This looks good -- but before we actually commit it, confirm that
+	 * it doesn't create a cycle.
+	 */
+	flattenAutoanalyzers(function (analyzers) {
+		planAutoanalyzers(analyzers, 'cannot load autoanalyzers');
+		analyzers[analyzer.name] = JSON.parse(JSON.stringify(analyzer));
+		planAutoanalyzers(analyzers, 'cannot add ' + analyzer.name);
+		insert();
+	});
+}
+
+handlers.autoanalyzers = function (client, argv)
+{
+	var i;
+
+	var usage = function (msg) {
+		var c = mod_path.basename(process.argv[1]);
+
+		console.error(c + ': ' + msg);
+		console.error('Usage: ' + c +
+		    ' autoanalyzers [subcommand] [params]\n');
+
+		for (i = 0; i < subcmds.length; i++) {
+			var cmd = subcmds[i].token + (subcmds[i].params ?
+			    (' ' + subcmds[i].params) : '');
+
+			console.error(sprintf('  %-26s %s',
+			    cmd, subcmds[i].usage));
+		}
+
+		process.exit(1);
+	}
+
+	var subcmds = [
+		{ token: 'upload', params: '[file]',
+		    usage: 'upload an autoanalyzer' },
+		{ token: 'ls',
+		    usage: 'list autoanalyzers' },
+		{ token: 'dryrun',
+		    usage: 'dry run autoanalyzers' },
+		{ token: 'run',
+		    usage: 'run autoanalyzers' },
+		{ token: 'remove', params: '[autoanalyzer]',
+		    usage: 'remove an autoanalyzer' }
+	];
+
+	if (argv.length == 0)
+		usage('need to specify an autoanalyzers subcommand');
+
+	for (i = 0; i < subcmds.length; i++) {
+		if (argv[0] != subcmds[i].token)
+			continue;
+
+		if (!autoanalyzers[subcmds[i].token]) {
+			fatal('unimplemented autoanalyzers subcommand "' +
+			     argv[0] + '"');
+		}
+
+		argv = argv.slice(1, argv.length);
+
+		check(subcmds[i], argv, usage);
+		autoanalyzers[subcmds[i].token].call(this, client, argv);
+		return;
+	}
+
+	usage('unrecognized autoanalyzers subcommand "' + argv[0] + '"');
+}
+
+handlers.logs = function (client, argv)
+{
+	var results = [];
+	var outstanding = {};
+	var machines = 1;
+
+	var timePath = function (hours) {
+		var t = new Date(new Date().valueOf() - (3600 * hours * 1000));
+
+		return (sprintf('%02d/%02d/%02d',
+		    t.getUTCMonth() + 1, t.getUTCDate(), t.getUTCHours()));
+	};
+
+	var descend = function (path, cb) {
+		outstanding[path] = 1;
+
+		var done = function () {
+			if (--outstanding[path] == 0)
+				cb();
+		};
+
+		client.ls(path, function (err, res) {
+			res.on('error', done);
+
+			res.on('directory', function (obj) {
+				outstanding[path]++;
+				descend(path + '/' + obj.name, done);
+			});
+
+			res.on('object', function (obj) {
+				results.push(path + '/' + obj.name);
+			});
+
+			res.on('end', done);
+		});
+	};
+
+	client.ls(thoth.logs, function (err, res) {
+		var hour, i;
+
+		checkError(err);
+
+		var doneMachines = function () {
+			if (--machines == 0) {
+				results.sort();
+				for (i = 0; i < results.length; i++)
+					console.log(results[i]);
+				process.exit(0);
+			}
+		}
+
+		res.on('directory', function (obj) {
+			for (hour = 0; hour <= 1; hour++) {
+				machines++;
+				descend([ thoth.logs, obj.name,
+				    thoth.log, timePath(hour) ].join('/'),
+				    doneMachines);
+			}
+		});
+
+		res.on('end', doneMachines);
+	});
+}
+
+handlers.init = function ()
+{
+	var db = thoth.db.db;
+	var tables = [ 'dumps', 'analyzers' ];
+	var indices = [ { table: 'dumps', index: 'time' } ];
+	delete thoth.db.db;
+
+	var checkerr = function (err, kind, what) {
+		if (!err) {
+			status('created ' + kind + ' \'' + what + '\'');
+			return;
+		}
+
+		if (err && err.message.indexOf('already exists') != -1) {
+			status(kind + ' \'' + what + '\' already exists');
+			return;
+		}
+
+		fatal('couldn\'t create ' + kind + ' \'' + what + '\'');
+	};
+
+	var createIndices = function (conn, indices) {
+		var index = indices.shift();
+		var rval;
+
+		if (!index)
+			process.exit(0);
+
+		rval = mod_r.db(db).table(index.table);
+		rval.indexCreate(index.index).run(conn, function (err) {
+			checkerr(err, 'index', index.index);
+			createIndices(conn, indices);
+		});
+	};
+
+	var createTables = function (conn, tables) {
+		var table = tables.shift();
+
+		if (!table) {
+			createIndices(conn, indices);
+			return;
+		}
+
+		mod_r.db(db).tableCreate(table).run(conn, function (err) {
+			checkerr(err, 'table', table);
+			createTables(conn, tables);
+		});
+	};
+
+	mod_r.connect(thoth.db, function (err, conn) {
+		if (err) {
+			fatal('couldn\'t connect to database: ' +
+			    err.message);
+		}
+
+		mod_r.dbCreate(db).run(conn, function (err) {
+			checkerr(err, 'database', db);
+			createTables(conn, tables);
+		});
+	});
+};
+
+var connect = function ()
+{
+	var i, opts = {};
+	var mvars = [ 'MANTA_URL', 'MANTA_USER', 'MANTA_KEY_ID' ];
+
+	for (i = 0; i < mvars.length; i++) {
+		if (!process.env[mvars[i]]) {
+			fatal('expected ' + mvars[i] +
+			    ' environment variable to be set');
+		}
+	}
+
+	opts.log = mod_bunyan.createLogger({
+		name: mod_path.basename(process.argv[1]),
+		level: (process.env.LOG_LEVEL || 'info'),
+		stream: process.stderr
+	});
+
+	return (mod_manta.createBinClient(opts));
+}
+
+var configure = function (cb)
+{
+	var k;
+	var conf = false;
+	var file = process.env.HOME + '/.thoth.' + thoth.config;
+	var object = thoth.path + '/' + thoth.config;
+	var client = undefined;
+
+	thoth.db.db = thoth.path.split('/')[1].replace('.', '_');
+
+	/*
+	 * First, look for environment variables.
+	 */
+	for (k in thoth.db) {
+		var env = 'THOTH_DB_' + k.toUpperCase();
+
+		if (process.env[env]) {
+			conf = true;
+			thoth.db[k] = process.env[env];
+		}
+	}
+
+	if (conf)
+		return (cb(client, 'from environment'));
+
+	var parseconf = function (data, where) {
+		if (!data.db)
+			fatal('expected \'db\' member in ' + file);
+
+		for (k in data.db) {
+			if (!thoth.db.hasOwnProperty(k)) {
+				fatal('unexpected property \'' + k +
+				     '\' in ' + file);
+			}
+
+			thoth.db[k] = data.db[k];
+		}
+
+		return (cb(client, where));
+	};
+
+	/*
+	 * Next, look for a configuration file in our home directory.
+	 */
+	try {
+		parseconf(JSON.parse(mod_fs.readFileSync(file)), 'locally');
+		return;
+	} catch (err) {
+		if (err.code != 'ENOENT')
+			fatal('couldn\'t open/parse ' + file + ': ' + err);
+	}
+
+	/*
+	 * Finally, pull our configuration from thoth itself.
+	 */
+	client = connect();
+
+	client.get(object, function (err, stream, res) {
+		if (err) {
+			if (err.code === 'ResourceNotFound') {
+				cb(client, 'from source');
+				return;
+			}
+
+			fatal('could not load thoth configuration (' +
+			    object + ') from Manta: ' + err);
+		}
+
+		var output = '';
+
+		stream.on('data', function (data) {
+			output += data;
+		});
+
+		stream.on('end', function () {
+			parseconf(JSON.parse(output), 'from Manta');
+		});
+	});
+}
+
+var main = function ()
+{
+	var i, argv = process.argv;
+	var client = undefined;
+	var conf = false;
+
+	if (argv.length < 3)
+		usage('expected command');
+
+	thoth.analyzers = thoth.path + '/' + thoth.analyzers;
+	thoth.logs = thoth.path + '/' + thoth.logs;
+	thoth.index = thoth.path + '/' + thoth.index;
+
+	/*
+	 * Before we attempt to autoconfigure ourselves, see if we have a
+	 * command that allows us to run unconfigured.
+	 */
+	for (i = 0; i < thoth.cmds.length; i++) {
+		if (argv[2] != thoth.cmds[i].token)
+			continue;
+
+		if (!thoth.cmds[i].unconfigured)
+			break;
+
+		argv = argv.slice(3, argv.length);
+		check(thoth.cmds[i], argv, usage);
+		handlers[thoth.cmds[i].token].call(this, client, argv);
+		return;
+	}
+
+	configure(function (client, src) {
+		if (thoth.db.authKey == 'none')
+			delete thoth.db.authKey;
+
+		status('using database at ' +
+		    thoth.db.host + ':' + thoth.db.port +
+		    ' (configured ' + src + ')');
+
+		for (i = 0; i < thoth.cmds.length; i++) {
+			if (argv[2] != thoth.cmds[i].token)
+				continue;
+
+			argv = argv.slice(3, argv.length);
+
+			check(thoth.cmds[i], argv, usage);
+
+			if (!client && !thoth.cmds[i].disconnected)
+				client = connect();
+
+			handlers[thoth.cmds[i].token].call(this, client, argv);
+			break;
+		}
+
+		if (i == thoth.cmds.length)
+			usage('unrecognized command "' + argv[2] + '"');
+	});
+};
+
+main();

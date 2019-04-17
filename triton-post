@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Do some post-setup stuff
+
+host=root@$1
+
+#set -e
+set -x
+
+ssh-copy-id $host
+scp ~/.ssh/authorized_keys $host:/mnt/usbkey/config.inc/root.authorized_keys
+
+ssh $host zfs create zones/jlevon
+ssh $host /opt/smartdc/bin/sdc-usbkey mount
+
+ssh $host /opt/smartdc/bin/sdcadm post-setup common-external-nics
+ssh $host /opt/smartdc/bin/sdcadm post-setup cloudapi
+ssh $host /opt/smartdc/bin/sdcadm post-setup dev-headnode-prov
+
+ssh $host /usbkey/scripts/setup_manta_zone.sh
+
+scp ~/src/lab/emy-15.manta.json $host:/zones/jlevon/
+manta0=$(ssh $host vmadm lookup alias=manta0)
+ssh $host ln -s /zones/$manta0/root/opt/smartdc/manta-deployment/networking /var/tmp/networking
+ssh $host "(cd /var/tmp/networking && . /root/.profile && ./manta-net.sh /zones/jlevon/emy-15.manta.json)"
+ssh $host zlogin $manta0 'bash -c ". /root/.profile ; manta-init -s lab -e root"'
+sleep 60
+ssh $host zlogin $manta0 'bash -c ". /root/.profile ; manta-deploy-lab"'
+

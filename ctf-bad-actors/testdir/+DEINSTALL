@@ -1,0 +1,162 @@
+#!/usr/bin/bash
+#
+# $NetBSD: header,v 1.3 2014/12/30 15:13:20 wiz Exp $
+
+SELF="$0"
+PKGNAME="$1"
+STAGE="$2"
+shift 2
+
+AWK="/opt/local/bin/nawk"
+BASENAME="/usr/bin/basename"
+CAT="/usr/bin/cat"
+CHGRP="/usr/bin/chgrp"
+CHMOD="/usr/bin/chmod"
+CHOWN="/usr/bin/chown"
+CMP="/bin/cmp"
+CP="/bin/cp"
+DIRNAME="/usr/bin/dirname"
+ECHO="echo"
+ECHO_N="echo -n"
+EGREP="/usr/xpg4/bin/grep -E"
+EXPR="/usr/xpg4/bin/expr"
+FALSE="false"
+FIND="/usr/bin/find"
+GREP="/usr/xpg4/bin/grep"
+GTAR=""
+HEAD="/usr/bin/head"
+ID="/usr/xpg4/bin/id"
+LINKFARM="/opt/local/sbin/linkfarm"
+LN="/usr/bin/ln"
+LS="/usr/bin/ls"
+MKDIR="/usr/bin/mkdir -p"
+MV="/usr/bin/mv"
+PERL5="/opt/local/bin/perl"
+PKG_ADMIN="/opt/local/sbin/pkg_admin"
+PKG_INFO="/opt/local/sbin/pkg_info"
+PWD_CMD="/bin/pwd"
+RM="/usr/bin/rm"
+RMDIR="/usr/bin/rmdir"
+SED="/opt/local/bin/nbsed"
+SETENV="/usr/bin/env"
+SH="/usr/bin/bash"
+SORT="/usr/bin/sort"
+SU="/usr/bin/su"
+TEST="test"
+TOUCH="/usr/bin/touch"
+TR="/usr/xpg4/bin/tr"
+TRUE="true"
+XARGS="/usr/bin/xargs"
+
+CURDIR=`${PWD_CMD}`
+: ${PKG_METADATA_DIR=${CURDIR}}
+PKGBASE="p5-Mozilla-CA"
+
+LOCALBASE="/opt/local"
+X11BASE="/opt/local"
+PREFIX="/opt/local"
+
+PKG_SYSCONFBASE="/opt/local/etc"
+PKG_SYSCONFBASEDIR="/opt/local/etc"
+PKG_SYSCONFDIR="/opt/local/etc"
+CONF_DEPENDS=""
+
+CONF_IGNORE_FILES="*[~#] *.OLD *.orig *,v .pkgsrc */.pkgsrc"
+
+case "${PKG_CONFIG:-YES}" in
+[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+	_PKG_CONFIG=yes
+	;;
+[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
+	_PKG_CONFIG=yes
+	;;
+esac
+
+# $NetBSD: deinstall.tmpl,v 1.3 2010/02/14 15:10:38 tron Exp $
+
+case ${STAGE} in
+DEINSTALL)
+	eval `${PERL5} -V:prefix -V:archlib -V:scriptdir`
+	PERL5_PACKLIST="/opt/local/lib/perl5/vendor_perl/5.24.0/i386-solaris-thread-multi/auto/Mozilla/CA/.packlist"
+
+	# Remove the perllocal.pod file.
+	case "$archlib" in
+	$prefix/*)	archlib="${PKG_PREFIX-/opt/local}/${archlib#$prefix/}" ;;
+	esac
+	# XXX: multiarch
+	${RM} -f $archlib/../*/perllocal.pod
+	${RMDIR} -p $archlib 2>/dev/null || ${TRUE}
+
+	# Remove any symlinked bits that belong to this module.
+	$scriptdir/perllink -f -p ${PKG_PREFIX-/opt/local} delete ${PERL5_PACKLIST}
+
+	# If this is not the perl package, then re-link any perl bits
+	# back into place.
+	#
+	$scriptdir/perllink -p ${PKG_PREFIX-/opt/local} add
+	;;
+esac
+# $NetBSD: deinstall,v 1.4 2016/04/12 15:52:29 jaapb Exp $
+
+case ${STAGE} in
+DEINSTALL)
+  #
+  # Unregister package from ocaml-findlib.
+  #
+  ${TEST} ! -x ./+OCAML_FINDLIB_REGISTER ||
+    ./+OCAML_FINDLIB_REGISTER REMOVE ${OCAML_FINDLIB_DIR}
+
+	#
+	# Unregister info files.
+	#
+	${TEST} ! -x ./+INFO_FILES ||
+		./+INFO_FILES REMOVE ${PKG_METADATA_DIR}
+	#
+	# Remove shells from /etc/shells.
+	#
+	${TEST} ! -x ./+SHELL ||
+		./+SHELL REMOVE ${PKG_METADATA_DIR}
+	${TEST} ! -x ./+SHELL ||
+		./+SHELL CHECK-REMOVE ${PKG_METADATA_DIR}
+
+	# Remove configuration files if they don't differ from the default
+	# config file.
+	#
+	${TEST} ! -x ./+FILES ||
+		./+FILES REMOVE ${PKG_METADATA_DIR}
+	;;
+
+POST-DEINSTALL)
+	#
+	# Update any fonts databases.
+	#
+	${TEST} ! -x ./+FONTS ||
+		./+FONTS ${PKG_METADATA_DIR}
+	#
+	# Rebuild the system run-time library search path database.
+	#
+	${TEST} ! -x ./+SHLIBS ||
+		./+SHLIBS REMOVE ${PKG_METADATA_DIR}
+	#
+	# Remove empty directories and unused users/groups.
+	#
+	${TEST} ! -x ./+DIRS ||
+		./+DIRS REMOVE ${PKG_METADATA_DIR}
+	${TEST} ! -x ./+USERGROUP ||
+		./+USERGROUP REMOVE ${PKG_METADATA_DIR}
+	#
+	# Check for any existing bits after we're finished de-installing.
+	#
+	${TEST} ! -x ./+USERGROUP ||
+		./+USERGROUP CHECK-REMOVE ${PKG_METADATA_DIR}
+	${TEST} ! -x ./+FILES ||
+		./+FILES CHECK-REMOVE ${PKG_METADATA_DIR}
+	${TEST} ! -x ./+DIRS ||
+		./+DIRS CHECK-REMOVE ${PKG_METADATA_DIR}
+	;;
+esac
+
+# $NetBSD: footer,v 1.1 2006/05/21 23:50:15 jlam Exp $
+
+exit 0
+

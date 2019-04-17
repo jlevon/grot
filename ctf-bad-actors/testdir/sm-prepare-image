@@ -1,0 +1,350 @@
+#!/usr/bin/bash
+#
+# sm-prepare-image
+# A script to clean up the file system of an existing SmartMachine
+# and prepare it for turning into a provisionable SmartOS image.
+# Copyright (c) 2016 Joyent Inc., All rights reserved.
+
+set -e
+if [ ${DEBUG} ]; then
+  set -x
+fi
+
+if [ "$1" == "-y" ]; then
+  # Unattended mode, automate read prompts
+  yn_start=y
+  yn_nfs=y
+  yn_subips=y
+  yn_halt=y
+fi
+
+### Zoneinit configuration
+
+zoneinit_source=/opt/local/lib/zoneinit
+zoneinit_home=/var/zoneinit
+zoneinit_files=(zoneinit zoneinit.json zoneinit.xml includes)
+mdata_home=/var/svc
+mdata_files=(mdata-fetch mdata-execute mdata.xml)
+
+### Bits to look for
+{
+delete_files=(
+  /etc/ssh/ssh_*key*
+  /var/ssh/ssh_*key*
+  /etc/defaultrouter
+  /etc/dhcp/*.dhc
+  /etc/dhcp.*
+  /etc/hostname.net*
+  /var/adm
+  /var/cron
+  /var/db/pkgin
+  /var/spool/postfix/defer*
+  /var/spool/postfix/hold
+  /var/spool/postfix/incoming
+  /var/svc/log
+  /var/svc/provision*
+  /var/log:*log.*
+)
+
+blank_files=(
+  /var/log
+)
+
+touch_files=(
+  /var/adm/messages
+  /var/adm/sulog
+  /var/adm/wtmpx
+  /var/cron/log
+  /var/log/syslog
+)
+
+users=(
+root
+admin
+)
+
+delete_users_files=(
+  .*history
+  .gnupg
+  .lesshst
+  .subversion
+  .viminfo
+  .ssh/known_hosts
+)
+}
+
+### Functions
+each_file_in() {
+  # Loops through items passed in the first arg, and deletes/blanks/touches
+  # the file depending on the second arg. If a directory is found, files are
+  # located inside the directory (optionally only those matching a pattern
+  # separated by a colon in the pattern arg).
+  local item=${1%%:*}
+  local pattern=${1##*:}
+  local action=${2-touch}
+  local file
+  if [ ${item} == ${pattern} ]; then unset pattern; fi
+  if [ -e ${item} ]; then # single file, or file-in-directory
+    for file in $(find ${item} -type f ${pattern:+-name ${pattern}}); do
+      case ${action} in
+        delete) rm -f ${file} ;;
+        blank)  cp /dev/null ${file} ;;
+        *)      touch ${file} ;;
+      esac
+    done
+  elif [ ${action} == "touch" ]; then
+    touch ${item}
+  fi
+}
+current_ips() {
+  ifconfig -a | awk '{ if ($1=="inet") print $2}' | grep -v 127.0.0.1 || true
+}
+files_with_ip() {
+  local ip=$1
+  find /etc /opt/local/etc -type f | sort | xargs grep -l "${ip}" || true
+}
+
+### Stuff starts happening here
+cat <<EOF
+
+*** WARNING: PLEASE READ CAREFULLY!  THIS SCRIPT WILL ALTER YOUR SYSTEM ***
+
+This script cleans up the file system of your machine, and makes it ready
+for turning into a provisionable image. Irreversible changes are made to this
+machine's filesystem for the sake of the image preparation, so if you intend
+to continue to use this machine, make sure you have a sanity snapshot created
+first that you can roll back to when you're done. If you made this machine for
+the image purposes only and are fine discarding it later on, you do not
+need a snapshot.
+
+This script will:
+
+  Change hard coded IP addresses to variables [optional]
+  Delete transient files and log files
+  Unset passwords for 'root' and 'admin' users
+  Reset network information
+
+If you are at all unsure, stop now and check the script.
+
+EOF
+[ ${yn_start} ] || read -p "Do you want to proceed? y/N " yn_start
+echo
+
+if [[ ! "${yn_start}" =~ [Yy] ]]; then
+  exit 1
+fi
+
+if [ $(id -u) -ne 0 ]; then
+  echo "Sorry, you must run this script as root"
+  exit 1
+fi
+
+echo
+echo "=> Removing volatile files"
+{
+for file in ${delete_files[@]}; do
+  each_file_in ${file} delete
+done
+
+for file in ${blank_files[@]}; do
+  each_file_in ${file} blank
+done
+
+for file in ${touch_files[@]}; do
+  each_file_in ${file} touch
+done
+
+# Remove this socket file explicitly:
+rm -f /.zonecontrol/metadata.sock
+
+# Make sure /var/ssh exists to hold SSH host keys
+[ -d /var/ssh ] || mkdir -p /var/ssh
+}
+
+echo
+echo "=> Removing users' volatile information"
+{
+for user in ${users[@]}; do
+  echo "==> Removing files for user ${user}"
+  for file in ${delete_users_files[@]}; do
+    each_file_in $(eval "cd ~${user}; pwd")/${file} delete
+  done
+  # Unset passwords set
+  echo "==> Unsetting password for user ${user}"
+  out=$(passwd -N ${user})
+done
+}
+
+echo
+echo "=> Cleaning up old network configuration"
+{
+cat > /etc/hosts <<EOF
+::1		localhost
+127.0.0.1	localhost localhost.local loghost
+EOF
+}
+
+echo
+echo "=> Checking for possible NFS configuration"
+{
+nfs_state=$(svcs -Ho state nfs/client 2>/dev/null || true)
+if [ "${nfs_state}" = "online" ]; then
+  nfs_mounts=$(awk '{if($4~/nfs/ && $1!~/^#/) print $3}' /etc/vfstab)
+  if [ ${nfs_mounts} ]; then
+    cat <<EOF
+
+You have enabled the NFS client SMF service ('nfs/client') and have live
+NFS mounts defined in /etc/vfstab. If, for some reason, the NFS server
+is not available when a new machine is being provisioned, the provision
+will fail. It is recommended to not enable 'nfs/client' by default, but
+do it in a /var/zoneinit/includes so that NFS still gets enabled, but
+it will not hinder the provisioning process itself. If you do not need
+NFS support at all, it's suggested to break out right now (Ctrl+C) and
+disable 'nfs/client' yourself, then re-run this script.
+
+EOF
+    [ ${yn_nfs} ] || read -p "Disable NFS client now, and enable in provisioner only? Y/n " yn_nfs
+
+    if [[ -z "${yn_nfs}" || "${yn_nfs}" =~ [yY] ]]; then
+      svcadm disable nfs/client >/dev/null 2>&1
+      enable_nfs=yes
+    fi
+  fi
+fi
+}
+
+echo
+echo "=> Looking for hard coded IP addresses"
+{
+cat <<EOF
+
+The script will look for IP addresses associated with this machine, which
+won't match those of the machines provisioned from the image you are about
+to create. You can have the addresses turned into placeholders that will be
+automatically populated by the IP addresses when provisioning.
+
+We recommend you avoid using hardcoded IP addresses in the first place, unless
+there is no other alternative.
+
+EOF
+[ ${yn_subips} ] || read -p "Do you want place holders put in place of IP addresses? Y/n " yn_subips
+
+if [[ -z "${yn_subips}" || "${yn_subips}" =~ [yY] ]]; then
+  for ip in $(current_ips); do
+    files_found=$(files_with_ip ${ip})
+    case ${ip} in
+      10.*)         ip_placeholder='@PRIVATE_IP@' ;;
+      172.1[6-9].*) ip_placeholder='@PRIVATE_IP@' ;;
+      172.2[0-9].*) ip_placeholder='@PRIVATE_IP@' ;;
+      172.3[0-1].*) ip_placeholder='@PRIVATE_IP@' ;;
+      192.168.*)    ip_placeholder='@PRIVATE_IP@' ;;
+      *)            ip_placeholder='@PUBLIC_IP@' ;;
+    esac
+    for file in ${files_found}; do
+      sed -e "s/${ip}/${ip_placeholder}/g" ${file} > ${file}.tmp
+      echo ". ${file}: '${ip}' => '${ip_placeholder}'"
+      mv ${file}.tmp ${file}
+    done
+  done
+else
+  echo
+  echo "==> Substitution skipped, services set up may not work properly."
+fi
+}
+
+
+# Skip zoneinit creation if we already have the zoneinit package
+# (as of 2013Q3)
+if ! pkg_info -qE zoneinit; then
+
+echo
+echo "=> Creating a basic zoneinit instance"
+{
+if [ ! -d ${zoneinit_home} ]; then
+  mkdir ${zoneinit_home}
+  if [ ! -d ${zoneinit_home}/includes ]; then
+    mkdir ${zoneinit_home}/includes
+  fi
+fi
+
+for zoneinit_file in ${zoneinit_files[@]}; do
+  if [ -e ${zoneinit_source}/${zoneinit_file} ]; then
+    cp -Rp ${zoneinit_source}/${zoneinit_file} ${zoneinit_home}/
+  else
+    echo "==> WARNING: required file ${zoneinit_file} not found"
+  fi
+done
+
+for mdata_file in ${mdata_files[@]}; do
+  if [ -e ${zoneinit_source}/${mdata_file} ]; then
+    cp -Rp ${zoneinit_source}/${mdata_file} ${mdata_home}/
+  else
+    echo "==> WARNING: required file ${mdata_file} not found"
+  fi
+done
+
+svccfg delete -f mdata || true
+svccfg import ${mdata_home}/mdata.xml
+svccfg import ${zoneinit_home}/zoneinit.xml
+}
+fi
+
+if [ ${enable_nfs} ]; then
+  cat > ${zoneinit_home}/includes/09-nfs.sh <<EOF
+log "enabling NFS client"
+svcadm enable -r nfs/client
+EOF
+fi
+
+# The zoneinit SMF service may not be installed,
+# e.g. on a joyent-minimal brand.
+if svcprop -p restarter/state -q zoneinit; then
+  # Wait for zoneinit to enable so that the next step doesn't interfere
+  svcadm enable -s zoneinit
+
+  # Clear the done property so that zoneinit starts next time this image is booted
+  svccfg -s zoneinit 'setprop application/done = false' 2>/dev/null || true
+  svcadm refresh zoneinit
+fi
+
+# IMAGE-895: Zoneinit needs mdata:fetch and mdata:execute to be disabled.
+for fmri in svc:/smartdc/mdata:fetch svc:/smartdc/mdata:execute; do
+    if [[ $(svcs -Ho state $fmri 2>/dev/null || true) != "disabled" ]]; then
+        svcadm disable $fmri
+    fi
+done
+
+echo
+echo "=> File system prepared successfully, finishing"
+{
+cat <<EOF
+
+The script is finished now.
+
+This machine should now be powered off, a snapshot taken, and an image created
+from the snapshot. Please contact support to have the image created, and refer
+to "Creating Your Own SmartMachine Image" in the wiki (http://wiki.joyent.com/wiki/x/zgCC)
+for more information.
+
+One reason to not power off now would be to inspect the zoneinit files (start
+scripts executed when a new machine is provisioned) at ${zoneinit_home} and
+optionally implement your own ones in ${zoneinit_home}/includes.
+
+EOF
+[ ${yn_halt} ] || read -p "Do you want to power this machine off now? Y/n " yn_halt
+if [[ -z "${yn_halt}" || "${yn_halt}" =~ [Yy] ]]; then
+  cat <<EOF
+
+Powering down in 10 seconds... (Ctrl C if not desired)
+
+EOF
+  shutdown -y -g10 -i0 >/dev/null 2>&1
+else
+  cat <<EOF
+
+The machine was left powered up. Power off manually and create the final
+snapshot when ready.
+
+EOF
+fi
+}

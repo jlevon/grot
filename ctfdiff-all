@@ -1,0 +1,19 @@
+#!/bin/bash
+
+dir=$1
+dir2=$2
+
+echo "Comparing $dir with $dir2"
+cd $dir
+find . -type f | sort | while read ln; do
+	#echo $ln
+	(cd $dir && ctfdump -c $ln) >/tmp/1.out.$$ 2>&1
+	(cd $dir2 && ctfdump -c $ln) >/tmp/2.out.$$ 2>&1
+	if ! cmp /tmp/1.out.$$ /tmp/2.out.$$>/dev/null ; then
+		echo "--------------- $ln differs"
+		gdiff -u /tmp/1.out.$$ /tmp/2.out.$$
+		#pwd
+		#exit 1
+		echo "--------------- $ln done"
+	fi
+done

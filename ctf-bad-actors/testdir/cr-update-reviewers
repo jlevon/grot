@@ -1,0 +1,468 @@
+#!/usr/bin/env node
+/* vim: set ft=javascript: */
+
+/*
+ * cr-update-reviewers: updates the commit message for a change based on the
+ * metadata in Gerrit.
+ */
+
+var mod_assertplus = require('assert-plus');
+var mod_cmdutil = require('cmdutil');
+var mod_extsprintf = require('extsprintf');
+var mod_forkexec = require('forkexec');
+var mod_getopt = require('posix-getopt');
+var mod_jsprim = require('jsprim');
+var mod_vasync = require('vasync');
+var VError = require('verror');
+
+var sprintf = mod_extsprintf.sprintf;
+
+var CR_HOST = 'cr.joyent.us';
+var CR_TMPDIR = '/var/tmp/cr-update-reviewers.' + process.pid;
+var CR_USAGE = [
+    'Given a change on cr.joyent.us, examine its current patchset and update ',
+    'the commit message to reflect the current approvals (for both code ',
+    'review and integration approval).'
+].join('\n');
+
+function main()
+{
+	var parser, option, args;
+	var config = {
+	    'cur_change': null,
+	    'cur_host': CR_HOST,
+	    'cur_tmpdir': CR_TMPDIR,
+	    'cur_user': null
+	};
+
+	mod_cmdutil.configure({
+	    'usageMessage': CR_USAGE,
+	    'synopses': [ '[-u | --user GERRIT_USERNAME] CHANGE_ID' ]
+	});
+
+	parser = new mod_getopt.BasicParser('u:(user)', process.argv);
+	while ((option = parser.getopt()) !== undefined) {
+		switch (option.option) {
+		case 'u':
+			config.cur_user = option.optarg;
+			break;
+
+		default:
+			mod_cmdutil.usage();
+			break;
+		}
+	}
+
+	args = process.argv.slice(parser.optind());
+	if (args.length != 1) {
+		mod_cmdutil.usage('expected exactly one change id');
+	}
+
+	config.cur_change = args[0];
+	crUpdateReviewers(config, function (err) {
+		if (err) {
+			mod_cmdutil.fail(err);
+		}
+	});
+}
+
+/*
+ * This functions drives the execution of the whole command.  This
+ * implementation avoids making too many assumptions about being in a command-
+ * line context.  It may be useful to put this into a bot in the future.  We'd
+ * likely want to eliminate the confirmation and replace references to the
+ * console, process.stdout, process.stderr, and cmdutil.warn() with something
+ * more general.
+ */
+function crUpdateReviewers(config, callback)
+{
+	mod_assertplus.object(config, 'config');
+	mod_assertplus.string(config.cur_change, 'config.cur_change');
+	mod_assertplus.string(config.cur_tmpdir, 'config.cur_tmpdir');
+	mod_assertplus.string(config.cur_host, 'config.cur_host');
+	mod_assertplus.optionalString(config.cur_user, 'config.cur_user');
+	mod_assertplus.func(callback, 'callback');
+
+	/* normalize arguments */
+	config.cur_hostpart = config.cur_user === null ? config.cur_host :
+	    sprintf('%s@%s', config.cur_user, config.cur_host);
+
+	/* information gleaned directly from the Gerrit change object */
+	config.cur_changeinfo = null;
+	config.cur_project = null;
+	config.cur_changenumber = null;
+	config.cur_commit_message = null;
+	config.cur_patchset_ref = null;
+
+	/* information parsed out of the Gerrit change object */
+	config.cur_approvals = null;
+
+	/* information parsed from the commit message */
+	config.cur_ticketlines = null;
+
+	/* computed properties */
+	config.cur_approval_block = null;
+	config.cur_new_message = null;
+
+	config.cur_pipeline = mod_vasync.pipeline({
+	    'arg': config,
+	    'funcs': [
+		crFetchChangeInfo,
+		crParseCommitMessage,
+		crConstructApprovals,
+		crConfirm,
+		crGitCloneProject,
+		crGitFetchPatchsetRef,
+		crGitCheckoutPatchsetRef,
+		crGitAmendCommit,
+		crGitPushPatchset,
+		crCleanup
+	    ]
+	}, callback);
+}
+
+/*
+ * Pipeline function: Fetch and validate metadata about the requested change
+ * from Gerrit.
+ */
+function crFetchChangeInfo(config, callback)
+{
+	var argv;
+
+	argv = [ 'ssh', config.cur_hostpart, 'gerrit', 'query',
+	    '--current-patch-set', '--format=JSON', 'limit:1',
+	    sprintf('change:%s', config.cur_change) ];
+
+	mod_forkexec.forkExecWait({
+	    'argv': argv,
+	    'includeStderr': true
+	}, function (err, info) {
+		if (err) {
+			callback(new VError(err, 'fetching change'));
+			return;
+		}
+
+		var lines, changeinfo;
+		lines = info.stdout.split('\n');
+		if (lines.length != 3 || lines[2].length !== 0) {
+			/*
+			 * TODO error message could be better when
+			 * change doesn't exist.
+			 */
+			callback(new VError(
+			    'expected exactly one change result'));
+			return;
+		}
+
+		try {
+			changeinfo = JSON.parse(lines[0]);
+		} catch (ex) {
+			callback(new VError(ex, 'parsing change'));
+			return;
+		}
+
+		/* TODO this could use a real JSON schema. */
+		if (typeof (changeinfo) != 'object' ||
+		    changeinfo === null ||
+		    typeof (changeinfo.project) != 'string' ||
+		    typeof (changeinfo.number) != 'string' ||
+		    typeof (changeinfo.commitMessage) != 'string' ||
+		    typeof (changeinfo.createdOn) != 'number' ||
+		    typeof (changeinfo.currentPatchSet) != 'object' ||
+		    changeinfo.currentPatchSet === null ||
+		    typeof (changeinfo.currentPatchSet.ref) !=
+		    'string') {
+			callback(new VError('bad server response'));
+			return;
+		}
+
+		config.cur_changeinfo = changeinfo;
+		config.cur_project = changeinfo.project;
+		config.cur_changenumber = changeinfo.number;
+		config.cur_commit_message = changeinfo.commitMessage;
+		config.cur_patchset_ref = changeinfo.currentPatchSet.ref;
+		config.cur_createdOn = changeinfo.createdOn;
+
+		console.log('Change %s current commit message:',
+		    config.cur_changenumber);
+		console.log('----------------------------------------------');
+		process.stdout.write(config.cur_commit_message);
+		console.log('----------------------------------------------');
+		console.log('Current commit date: %s\n',
+		    new Date(config.cur_createdOn * 1000).toISOString());
+		callback();
+	});
+}
+
+/*
+ * Pipeline function: Parse the commit message reported by Gerrit to separate
+ * the ticket-related lines from any approval lines that are already there.
+ *
+ * This function is effectively synchronous, but it's convenient to insert it
+ * into the vasync pipeline anyway.
+ */
+function crParseCommitMessage(config, callback)
+{
+	var lines, i;
+
+	lines = config.cur_commit_message.split('\n');
+	for (i = 0; i < lines.length; i++) {
+		if (lines[i].length === 0 ||
+		    mod_jsprim.startsWith(lines[i], 'Reviewed by:') ||
+		    mod_jsprim.startsWith(lines[i], 'Approved by:')) {
+			break;
+		}
+	}
+
+	config.cur_ticketlines = lines.slice(0, i);
+	setImmediate(callback);
+}
+
+/*
+ * Pipeline function: Parse the approval metadata from Gerrit and compute the
+ * list of approval lines that should be in the commit message.
+ *
+ * This function is effectively synchronous, but it's convenient to insert it
+ * into the vasync pipeline anyway.
+ */
+function crConstructApprovals(config, callback)
+{
+	var raw_approvals, approvals;
+	var a, i, who, label;
+
+	raw_approvals = config.cur_changeinfo.currentPatchSet.approvals;
+	if (!raw_approvals) {
+		raw_approvals = [];
+	}
+
+	approvals = [];
+	for (i = 0; i < raw_approvals.length; i++) {
+		a = raw_approvals[i];
+		if (typeof (a.grantedOn) != 'number' ||
+		    typeof (a.by) != 'object' || a.by === null ||
+		    typeof (a.by.name) != 'string' ||
+		    (a.type != 'CI-Testing' &&
+		    a.type != 'Code-Review' &&
+		    a.type != 'Integration-Approval') &&
+		    a.type != 'SUBM') {
+			setImmediate(callback,
+			    new VError('could not parse approval %d', i));
+			return;
+		}
+
+		if (a.type == 'CI-Testing' || a.type == 'SUBM') {
+			continue;
+		}
+
+		if (typeof (a.by.email) != 'string') {
+			setImmediate(callback,
+			    new VError('no email address for approval %d', i));
+			return;
+		}
+
+		who = sprintf('%s <%s>', a.by.name, a.by.email);
+		if (a.value != '1') {
+			mod_cmdutil.warn(
+			    'approval is not +1 (from %s)', who);
+			continue;
+		}
+
+		label = sprintf('%s by: %s\n',
+		    a.type == 'Code-Review' ? 'Reviewed' : 'Approved', who);
+		approvals.push({
+		    'a_type': a.type,
+		    'a_name': a.by.name,
+		    'a_email': a.by.email,
+		    'a_granted': a.by.grantedOn,
+		    'a_who': who,
+		    'a_label': label
+		});
+	}
+
+	approvals.sort(function (appa, appb) {
+		if (appa.a_type != appb.a_type) {
+			return (appa.a_type == 'Code-Review' ? -1 : 1);
+		}
+
+		return (appa.a_granted < appb.a_granted ? -1 :
+		    appa.a_granted > appb.b_granted ? 1 : 0);
+	});
+
+	config.cur_approvals = approvals;
+	config.cur_approval_block = approvals.map(function (app) {
+		return (app.a_label);
+	}).join('');
+	config.cur_new_message = config.cur_ticketlines.join('\n') + '\n' +
+	    config.cur_approval_block;
+
+	console.log('+1s found in Gerrit:');
+	approvals.forEach(function (app) {
+		mod_extsprintf.printf('    %-20s %s\n', app.a_type, app.a_who);
+	});
+	console.log('');
+
+	if (config.cur_commit_message == config.cur_new_message) {
+		setImmediate(callback,
+		    new Error('commit message has expected approvals'));
+	} else {
+		setImmediate(callback);
+	}
+
+	// Set the date of the commit to now.
+	config.cur_new_createdOn = new Date().toISOString();
+}
+
+/*
+ * Pipeline function: Prompt the user for confirmation before proceeding.
+ */
+function crConfirm(config, callback)
+{
+	console.log('Suggested commit message:');
+	console.log('------------------------------------------------');
+	process.stdout.write(config.cur_new_message);
+	console.log('------------------------------------------------');
+	console.log('Suggested commit date: %s\n', config.cur_new_createdOn);
+	mod_cmdutil.confirm({
+	    'message': 'Create a new patchset with the suggested ' +
+	        'commit message? (y/[n]) '
+	}, function (result) {
+		if (!result) {
+			callback(new VError('aborted by user'));
+		} else {
+			callback();
+		}
+	});
+}
+
+/*
+ * Pipeline function: Clone the project to our temporary directory in
+ * preparation to create a new patchset.
+ */
+function crGitCloneProject(config, callback)
+{
+	var argv;
+
+	if (!config.cur_changeinfo.open) {
+		setImmediate(callback, new VError('change is not still open'));
+		return;
+	}
+
+	console.error('Cloning %s to %s.', config.cur_project,
+	    config.cur_tmpdir);
+
+	argv = [ 'git', 'clone',
+	    sprintf('git+ssh://%s/%s.git', config.cur_hostpart,
+	    config.cur_project), config.cur_tmpdir ];
+	mod_forkexec.forkExecWait({
+	    'argv': argv,
+	    'includeStderr': true
+	}, callback);
+}
+
+/*
+ * Pipeline function: Explicitly fetch the Git reference for the latest patchset
+ * from the server.
+ */
+function crGitFetchPatchsetRef(config, callback)
+{
+	var argv;
+
+	console.error('Fetching patchset reference %s.',
+	    config.cur_patchset_ref);
+
+	argv = [ 'git', 'fetch', 'origin', config.cur_patchset_ref ];
+	mod_forkexec.forkExecWait({
+	    'argv': argv,
+	    'cwd': config.cur_tmpdir,
+	    'includeStderr': true
+	}, callback);
+}
+
+/*
+ * Pipeline function: Checkout the reference for the latest patchset so that we
+ * can edit the commit message.
+ */
+function crGitCheckoutPatchsetRef(config, callback)
+{
+	var argv;
+
+	console.error('Checking out patchset reference %s.',
+	    config.cur_patchset_ref);
+
+	argv = [ 'git', 'checkout',
+	    config.cur_changeinfo.currentPatchSet.revision ];
+	mod_forkexec.forkExecWait({
+	    'argv': argv,
+	    'cwd': config.cur_tmpdir,
+	    'includeStderr': true
+	}, callback);
+}
+
+/*
+ * Pipeline function: Amend the commit message to update the list of reviewers
+ * and approvers.
+ */
+function crGitAmendCommit(config, callback)
+{
+	var argv;
+
+	console.error('Amending commit.');
+	argv = [ 'git', 'commit', '--amend', '--date', config.cur_new_createdOn,
+	     '--message', config.cur_new_message ];
+	mod_forkexec.forkExecWait({
+	    'argv': argv,
+	    'cwd': config.cur_tmpdir,
+	    'includeStderr': true
+	}, callback);
+}
+
+/*
+ * Pipeline function: Push the amended commit as a new patchset.
+ */
+function crGitPushPatchset(config, callback)
+{
+	var argv;
+
+	argv = [ 'git', 'push', 'origin',
+	    sprintf('HEAD:refs/changes/%s', config.cur_changenumber) ];
+	console.error('Pushing new patchset: %s', argv.join(' '));
+	mod_forkexec.forkExecWait({
+	    'argv': argv,
+	    'cwd': config.cur_tmpdir,
+	    'includeStderr': true
+	}, function (err, info) {
+		if (err) {
+			callback(err);
+			return;
+		}
+
+		console.log(info.stderr);
+		callback();
+	});
+}
+
+/*
+ * Pipeline function: Remove the clone in our temporary directory.
+ */
+function crCleanup(config, callback)
+{
+	var argv;
+
+	/*
+	 * Be absolutely sure that we're not about to do something really
+	 * stupid.  We can relax this if we let people customize the temporary
+	 * directory name later.
+	 */
+	mod_assertplus.string(config.cur_tmpdir);
+	mod_assertplus.ok(mod_jsprim.startsWith(
+	    config.cur_tmpdir, '/var/tmp/cr-update-reviewers.'));
+
+	argv = [ 'rm', '-rf', config.cur_tmpdir ];
+	console.error('Cleaning up: %s', argv.join(' '));
+	mod_forkexec.forkExecWait({
+	    'argv': argv,
+	    'includeStderr': true
+	}, callback);
+}
+
+main();

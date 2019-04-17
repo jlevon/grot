@@ -1,0 +1,12 @@
+#!/bin/bash
+
+for i in "$@"; do
+	dump=$(dump -hn .SUNW_ctf "$i" 2>&1)
+	if echo $dump | grep 'not found' >/dev/null; then
+		echo "$i: no"
+	elif echo $dump | grep '.SUNW_ctf' >/dev/null; then
+		echo "$i: yes"
+	else
+		echo "$i: invalid"
+	fi
+done

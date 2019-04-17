@@ -1,0 +1,3 @@
+#!/bin/bash
+
+gfind . -type f -name '*.h' | xargs grep $1 | grep .h:

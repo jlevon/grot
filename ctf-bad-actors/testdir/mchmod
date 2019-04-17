@@ -1,0 +1,173 @@
+#!/usr/bin/env node
+// -*- mode: js -*-
+/*
+ * Copyright 2016 Joyent, Inc.
+ */
+
+var path = require('path');
+var url = require('url');
+
+var bunyan = require('bunyan');
+var dashdash = require('dashdash');
+
+var manta = require('../lib');
+
+
+///--- Globals
+
+var NAME = path.basename(process.argv[1]);
+
+var LOG = bunyan.createLogger({
+    name: NAME,
+    level: (process.env.LOG_LEVEL || 'info'),
+    stream: process.stderr
+});
+
+var OPTIONS_PARSER = dashdash.createParser({
+    options: manta.DEFAULT_CLI_OPTIONS
+});
+
+
+
+///--- Functions
+
+function ifError(err) {
+    if (err) {
+        console.error('%s: %s', NAME, err.toString());
+        process.exit(1);
+    }
+}
+
+
+function parseMchmodOptions(args) {
+    if (args.length < 1) {
+        manta.cli_usage(OPTIONS_PARSER, 'role required',
+                                        '-- [+-=]role,... path...');
+    }
+
+    var roleOpt = args.shift();
+    var operation = roleOpt.charAt(0);
+
+    if (operation !== '+' && operation !== '-' && operation !== '=') {
+        manta.cli_usage(OPTIONS_PARSER,
+            'operation should be one of "+", "-" or "="');
+    }
+
+    return ({
+        operation: operation,
+        roles: roleOpt.substring(1).split(',')
+    });
+}
+
+
+function parseOptions() {
+    var opts;
+
+    try {
+        opts = OPTIONS_PARSER.parse(process.argv);
+    } catch (e) {
+        manta.cli_usage(OPTIONS_PARSER, e.message,
+                                        '-- [+-=]role,... path...');
+    }
+
+    manta.cli_logger(opts, LOG);
+
+    if (opts.help) {
+        manta.cli_usage(OPTIONS_PARSER, false,
+                                        '-- [+-=]role,... path...');
+    }
+
+    manta.cliVersionCheckPrintAndExit(opts);
+    manta.cliCompletionCheckPrintAndExit(opts, OPTIONS_PARSER, NAME, ['mpath']);
+
+    var mchmodOpts = parseMchmodOptions(opts._args);
+    opts.mchmodOperation = mchmodOpts.operation;
+    opts.mchmodRoles = mchmodOpts.roles;
+
+    if (opts._args.length < 1) {
+        manta.cli_usage(OPTIONS_PARSER, 'path required',
+                                        '-- [+-=]role,... path...');
+    }
+
+    opts.paths = opts._args.map(function (p) {
+        ifError(manta.assertPath(p, true));
+        return (manta.path(p, true));
+    });
+
+    try {
+        manta.checkBinEnv(opts);
+    } catch (e) {
+        manta.cli_usage(OPTIONS_PARSER, e.message,
+                        '-- [+-=]role,... path...');
+    }
+
+    return (opts);
+}
+
+
+function printEntry(obj) {
+    console.log('%j', obj);
+}
+
+
+
+///--- Mainline
+
+(function main() {
+    var options = parseOptions();
+    var client = manta.createBinClient(options);
+    var i = -1;
+
+    (function chmod(cb_err) {
+        ifError(cb_err);
+
+        var opts = {
+            headers: {}
+        };
+
+        var p = options.paths[++i];
+        if (!p) {
+            client.close();
+            return;
+        }
+
+        if (options.mchmodOperation === '=') {
+            opts.headers['role-tag'] = options.mchmodRoles.join(',');
+            client.chattr(p, opts, chmod);
+            return;
+        }
+
+        client.info(p, options, function (err, info, res) {
+            if (err && err.name === 'AuthorizationFailedError') {
+                console.error('%s: getobject access required for %s %s', NAME,
+                    NAME, options.mchmodOperation);
+                process.exit(1);
+            }
+            ifError(err);
+            var roles;
+            if (info.headers['role-tag']) {
+                /* JSSTYLED */
+                roles = info.headers['role-tag'].split(/\s*,\s*/);
+            } else {
+                roles = [];
+            }
+
+            if (options.mchmodOperation === '+') {
+                options.mchmodRoles.forEach(function (role) {
+                    if (roles.indexOf(role) < 0) {
+                        roles.push(role);
+                    }
+                });
+            } else if (options.mchmodOperation === '-') {
+                options.mchmodRoles.forEach(function (role) {
+                    var index = roles.indexOf(role);
+                    if (index >= 0) {
+                        roles.splice(index, 1);
+                    }
+                });
+            }
+            opts.headers['role-tag'] = roles.join(',');
+            client.chattr(p, opts, chmod);
+        });
+    })();
+})();

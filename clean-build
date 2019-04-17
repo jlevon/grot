@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Full clean build of a branch for smartos-live
+
+export PATH=$PATH:~/src/grot/
+
+branch=$1
+shift
+
+set -x
+
+for repo in . projects/illumos-extra projects/local/* ;
+do
+	(cd $repo && echo " -------- $repo --------- " && git clean -fdx)
+done
+
+(CODEMGR_WS=projects/illumos clean-illumos)
+
+cp sample.configure.smartos configure.smartos
+./configure $*
+all-repos git checkout $branch
+nohup make live usb
+nohup make images-tar

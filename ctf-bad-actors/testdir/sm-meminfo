@@ -1,0 +1,105 @@
+#!/usr/bin/bash
+#
+# Provides vm instance memory utilization information.
+# Copyright (c) 2016 Joyent Inc., All rights reserved.
+
+set -o errexit
+set -o pipefail
+#set -o nounset
+#set -o xtrace
+
+usage() {
+	cat <<- EOF >&2
+
+	Usage: $0 [options] TYPE
+
+	Arguments:
+    
+	    TYPE             rss or swap.
+
+	Options:
+    
+	    -p               Machine parsable output. 
+
+	EOF
+
+	exit 1;
+}
+
+while getopts "p" option; do
+	case ${option} in
+		p)
+			opt_p="true";
+			;;
+		*)
+			usage;
+			;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+if [[ $# = 1 ]]; then
+	type=$1;
+else
+	usage;
+fi
+
+export LANG=C
+PATH="/opt/local/bin:/opt/local/gnu/bin:/opt/local/sbin:/usr/bin:/usr/sbin";
+vm_uuid=$(zonename);
+vm_id=$(zoneadm list -p | awk -F: '{ print $1 }');
+
+case ${type} in
+rss)
+	echo "* Gathering rss memory infomation for ${vm_uuid}..";
+
+	vm_memcap=$(kstat -m memory_cap -c zone_memory_cap -s physcap -p | cut -f2 | awk '{ print $1 }');
+	vm_memused=$(kstat -m memory_cap -c zone_memory_cap -s rss -p | cut -f2 | awk '{ print $1 }');
+	vm_memfree=$(echo "${vm_memcap}-${vm_memused}" | bc);
+	vm_memfree="$(( ${vm_memcap}-${vm_memused} ))";
+	vm_memnover=$(kstat -m memory_cap -c zone_memory_cap -s nover -p | cut -f2);
+	vm_mempgout=$(kstat -m memory_cap -c zone_memory_cap -s pagedout -p | cut -f2);
+
+	if [[ -z "${opt_p}" ]]; then
+		cat <<-EOF
+		Memory (RSS) Cap     $((${vm_memcap}/1024/1024))M
+		Memory (RSS) Used    $((${vm_memused}/1024/1024))M
+		Memory (RSS) Free    $((${vm_memfree}/1024/1024))M
+		Memory NOver Cap     ${vm_memnover}
+		Memory Total Pgout   $((${vm_mempgout}/1024/1024))M
+		EOF
+	else
+		cat <<-EOF
+		vm_memcap:${vm_memcap}
+		vm_memused:${vm_memused}
+		vm_memfree:${vm_memfree}
+		vm_memnover:${vm_memnover}
+		vm_mempgout:${vm_mempgout}
+		EOF
+	fi
+        ;;
+swap)
+	echo "* Gathering swap memory infomation for ${vm_uuid}..";
+
+        vm_swapcap=$(kstat -p -c zone_caps -n swapresv_zone_${vm_id} -s value | awk '{ print $2 }');
+	vm_swapused=$(kstat -p -c zone_caps -n swapresv_zone_${vm_id} -s usage | awk '{ print $2 }');
+	vm_swapfree="$(( ${vm_swapcap}-${vm_swapused} ))";
+
+	if [[ -z "${opt_p}" ]]; then
+		cat <<-EOF
+		Memory (Swap) Cap    $((${vm_swapcap}/1024/1024))M
+		Memory (Swap) Used   $((${vm_swapused}/1024/1024))M
+		Memory (Swap) Free   $((${vm_swapfree}/1024/1024))M
+		EOF
+	else
+		cat <<-EOF
+		vm_swapcap:${vm_swapcap}
+		vm_swapused:${vm_swapused}
+		vm_swapfree:${vm_swapfree}
+		EOF
+	fi
+        ;;
+*)
+	usage;
+        ;;
+esac

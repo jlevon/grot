@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# https://gist.github.com/bahamat/8f5df9789c99afe482fc430bf0ea3de7
+
+set -o errexit
+
+job_id=${1:-}
+
+req_id=$(sdc-workflow "/jobs/$job_id" | json -Ha params.x-request-id)
+cnapi=$(sdc-vmname cnapi)
+zlogin "$cnapi" "source ~/.profile
+  bunyan -c this.snapshot -o bunyan --strict -c 'this.req_id==\"$req_id\"' \
+  \$(svcs -L cnapi) /var/log/sdc/upload/cnapi_* | json -ga snapshot \
+  | base64 -d | gunzip - | json steps"
