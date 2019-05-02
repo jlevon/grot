@@ -1,0 +1,13 @@
+#!/bin/bash
+
+dir=$1
+
+set -x
+
+rsync -ravz gk@m:$1/proto/opt/ opt/
+mkdir -p opt/bin
+rm -f opt/bin/ctfmerge opt/bin/ctfconvert
+scp -r gk@m:$1/proto/usr/bin/ctfmerge opt/bin
+scp -r gk@m:$1/proto/usr/bin/ctfconvert opt/bin
+ssh root@smartos pkgin install python27 gmake gcc7
+scp -r opt root@smartos:/

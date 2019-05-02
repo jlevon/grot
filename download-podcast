@@ -2,6 +2,8 @@
 
 url="$1"
 
+umask 0022
+
 readonly LOG_FILE="/var/tmp/download.log"
 touch $LOG_FILE
 exec 1>>$LOG_FILE

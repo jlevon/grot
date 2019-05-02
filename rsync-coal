@@ -2,4 +2,11 @@
 
 last=$(ssh gk@m ls -drt src/sdc-headnode/coal-*.vmwarevm/ | tail -1)
 
-rsync -avz gk@m:$last* ~/joyent/coal/
+set -x
+
+rsync -Pavz gk@m:$last* ~/joyent/coal/
+
+if test "$1" = "reset"; then
+	sudo qemu-img create -f qcow2 /var/lib/libvirt/images/coal.qcow2 100G
+fi
+
