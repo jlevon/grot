@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# new issue on redmine using npm redmine-cli
+
+userid=5222 # jlevon
+project=5 # illumos-gate
+smartos_bug=$1
+shift
+title=$@
+shift
+#set -x
+
+url="http://smartos.org/bugview/$smartos_bug"
+echo $url
+echo
+body="$(< /dev/stdin)"
+#echo $body
+body=$(printf '%s\n\n%s' "$url" "$body")
+a=$(redmine create-issue -a $userid -d "$body" 5 "$title")
+bt="$(echo $a | sed 's+.*#++') $title"
+
+printf "%s %s\n" "$smartos_bug" "$bt" >>~/bug-mappings
+
+echo $bt

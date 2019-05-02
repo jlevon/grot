@@ -4,7 +4,7 @@
 
 # cmt_ev_thread_swtch     common/disp/cmt.c       /^cmt_ev_thread_swtch(pg_t # *pg, cpu_t *cp, hrtime_t now, kthread_t *old,$/;"    f       file:
 
-exctags -R
+exuberant-ctags -R 2>/dev/null || ctags -R
 mv tags t.$$
 
 egrep 'ALTENTRY\(.*\)|ENTRY\(.*\)|ENTRY_NP\(.*\)' intel/ia32/ml/*.s i86pc/ml/*.s intel/kdi/*.s | while read ln; do

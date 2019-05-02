@@ -12,7 +12,7 @@ bugid=$(git log --format=%B -1  $rev | head -1 | awk '{print $1}')
 
 rm -rf $SRC/../../webrev
 
-webrev -c $rev -t rsync://webrev@cr.illumos.org:$bugid -U
+cwebrev -c $rev -t rsync://webrev@cr.illumos.org:$bugid -U
 
 echo
 echo "http://cr.illumos.org/~webrev/jlevon/$bugid"
