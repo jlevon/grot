@@ -1,0 +1,6 @@
+#!/bin/bash
+
+year=$(date +%Y)
+for file in "$@"; do
+	gsed -i "s/Copyright.*Joyent.*$/Copyright $year Joyent, Inc./" "$file"
+done

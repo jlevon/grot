@@ -1,0 +1,10 @@
+#!/bin/bash
+
+host=$1
+
+[[ -n "$host" ]] || host=root@volcano
+
+ssh $host /opt/smartdc/bin/sdc-usbkey mount
+
+latest=$(ssh $host /opt/smartdc/bin/sdcadm platform list -j | json -a -c 'this.default===true' version)
+scp -r output/platform-latest/* $host:/mnt/usbkey/os/$latest/platform/

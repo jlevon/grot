@@ -4,10 +4,14 @@
 
 host=root@$1
 
+shift
+
 #set -e
 set -x
 
+keykill $host
 ssh-copy-id $host
+ssh $host sdc-usbkey mount
 scp ~/.ssh/authorized_keys $host:/mnt/usbkey/config.inc/root.authorized_keys
 
 ssh $host zfs create zones/jlevon
@@ -16,6 +20,11 @@ ssh $host /opt/smartdc/bin/sdc-usbkey mount
 ssh $host /opt/smartdc/bin/sdcadm post-setup common-external-nics
 ssh $host /opt/smartdc/bin/sdcadm post-setup cloudapi
 ssh $host /opt/smartdc/bin/sdcadm post-setup dev-headnode-prov
+ssh $host /opt/smartdc/bin/sdcadm post-setup dev-sample-data
+
+if [[ "$1" != "manta" ]] ; then
+	exit 0
+fi
 
 ssh $host /usbkey/scripts/setup_manta_zone.sh
 
@@ -25,5 +34,5 @@ ssh $host ln -s /zones/$manta0/root/opt/smartdc/manta-deployment/networking /var
 ssh $host "(cd /var/tmp/networking && . /root/.profile && ./manta-net.sh /zones/jlevon/emy-15.manta.json)"
 ssh $host zlogin $manta0 'bash -c ". /root/.profile ; manta-init -s lab -e root"'
 sleep 60
-ssh $host zlogin $manta0 'bash -c ". /root/.profile ; manta-deploy-lab"'
+ssh $host zlogin $manta0 'bash -c ". /root/.profile ; yes y | manta-deploy-lab"'
 

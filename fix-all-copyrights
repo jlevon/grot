@@ -1,0 +1,5 @@
+#!/bin/bash
+
+git pbchk -p master -c copyright | awk -F: '/^Copyrights/{ next } {print $1}' | while read file; do
+	fix-copyright $file
+done
