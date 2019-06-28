@@ -4,4 +4,4 @@ set -e
 
 ref=$(echo $1 | sed 's+\(.*\)\(..\)/+remotes/cr/changes/\2/\1\2/+')
 git fetch cr +refs/changes/*:refs/remotes/cr/changes/*
-git checkout $ref
+git checkout -b gerrit-$ref $ref
