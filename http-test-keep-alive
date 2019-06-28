@@ -1,0 +1,4 @@
+#!/bin/bash
+
+REQ="GET /foo HTTP/1.1\nConnection: Keep-Alive\nAccept: *\n\n"
+while sleep 1; do echo -ne "$REQ"; done | nc $*
