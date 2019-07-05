@@ -20,7 +20,7 @@ macs=$(sdc-cnapi --no-headers /servers/$uuid | json sysinfo."Network Interfaces"
 echo "Yes" | sdc-server delete $uuid
 
 for mac in $macs; do
-	sdc-napi /nics/$mac -X DELETE
+	sdc-napi --no-headers /nics/$mac -X DELETE
 done
 
 echo "Now sdc-factoryreset on the CN"

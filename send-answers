@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# send-answers root@volcano ~/src/lab/emy-15.json
+
+host=$1
+file=$2
+
+set -e
+set -x
+
+ssh $host /opt/smartdc/bin/sdc-usbkey mount
+scp $file $host:/mnt/usbkey/private/answers.json
+ssh $host /opt/smartdc/bin/sdc-usbkey unmount

@@ -16,7 +16,7 @@ done
 
 (CODEMGR_WS=projects/illumos clean-illumos)
 
-cp sample.configure.smartos configure.smartos
+#cp sample.configure.smartos configure.smartos
 ./configure $*
 all-repos git checkout $branch
 nohup make live usb

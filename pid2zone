@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo $(ps -p $1 -o zone)
