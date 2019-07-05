@@ -22,9 +22,16 @@ ssh $host /opt/smartdc/bin/sdcadm post-setup cloudapi
 ssh $host /opt/smartdc/bin/sdcadm post-setup dev-headnode-prov
 ssh $host /opt/smartdc/bin/sdcadm post-setup dev-sample-data
 
+ssh-add -L | head -1 >/tmp/pkey.$$.pub
+scp /tmp/pkey.$$.pub $host:/tmp/pkey.$$.pub
+ssh $host /opt/smartdc/bin/sdc-useradm add-key admin /tmp/pkey.$$.pub
+
+
 if [[ "$1" != "manta" ]] ; then
 	exit 0
 fi
+
+[[ -f ~/src/lab/emy-15.manta.json ]] || exit 1
 
 ssh $host /usbkey/scripts/setup_manta_zone.sh
 
@@ -34,5 +41,13 @@ ssh $host ln -s /zones/$manta0/root/opt/smartdc/manta-deployment/networking /var
 ssh $host "(cd /var/tmp/networking && . /root/.profile && ./manta-net.sh /zones/jlevon/emy-15.manta.json)"
 ssh $host zlogin $manta0 'bash -c ". /root/.profile ; manta-init -s lab -e root"'
 sleep 60
-ssh $host zlogin $manta0 'bash -c ". /root/.profile ; yes y | manta-deploy-lab"'
+
+ssh $host /opt/smartdc/bin/sdc-useradm add-key poseidon /tmp/pkey.$$.pub
+
+echo "Now run:"
+
+echo zlogin $manta0
+echo manta-deploy-lab && manta-adm alarm config update -y
+
+exit 0
 
