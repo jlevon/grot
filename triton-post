@@ -44,6 +44,8 @@ sleep 60
 
 ssh $host /opt/smartdc/bin/sdc-useradm add-key poseidon /tmp/pkey.$$.pub
 
+ssh $host /opt/smartdc/bin/sapiadm update $(/opt/smartdc/bin/sdc-sapi /services?name=webapi | json -Ha uuid) metadata."MPU_ENABLE"=true
+:
 echo "Now run:"
 
 echo zlogin $manta0

@@ -16,20 +16,30 @@ fi
 
 set -e
 
-make all buildimage prepublish
-
-NAME=$(make print-NAME 2>/dev/null | cut -d= -f2)
+eval $(make print-NAME)
 BITSPATH=bits/$NAME
 STAMP=$(cat $BITSPATH/latest-build-stamp)
 
-ZFS=$BITSPATH/$NAME-zfs-$STAMP.zfs.gz
-MF=$BITSPATH/$NAME-zfs-$STAMP.imgmanifest
+if [[ "$NAME" == "sdcadm" ]]; then
+	make all publish
+	FILE=$BITSPATH/$NAME-$STAMP.sh
+	MF=$BITSPATH/$NAME-$STAMP.imgmanifest
+else
+	make all buildimage publish
+	FILE=$BITSPATH/$NAME-zfs-$STAMP.zfs.gz
+	MF=$BITSPATH/$NAME-zfs-$STAMP.imgmanifest
+fi
 
 UUID=$(json uuid <$MF)
 ROLE=$(json name <$MF | sed 's+manta-++')
+scp $FILE $MF $HEADNODE:/tmp/
+ssh $HEADNODE /opt/smartdc/bin/sdc-imgadm import -c none -f /tmp/$(basename $FILE) -m /tmp/$(basename $MF)
 
-scp $ZFS $MF $HEADNODE:/tmp/
-ssh $HEADNODE /opt/smartdc/bin/sdc-imgadm import -f /tmp/$(basename $ZFS) -m /tmp/$(basename $MF)
+if [[ "$NAME" == "sdcadm" ]]; then
+	IMGAPI=$(ssh $HEADNODE /opt/smartdc/bin/sdc-sapi --no-headers /services?name=imgapi | json -a metadata.SERVICE_DOMAIN)
+	ssh $HEADNODE /opt/smartdc/bin/sdcadm self-update -S http://$IMGAPI $UUID
+	exit 0
+fi
 
 ssh $HEADNODE /opt/smartdc/bin/sdcadm update -y $ROLE@$UUID || {
         #
