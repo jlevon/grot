@@ -33,13 +33,15 @@ fi
 UUID=$(json uuid <$MF)
 ROLE=$(json name <$MF | sed 's+manta-++')
 scp $FILE $MF $HEADNODE:/tmp/
-ssh $HEADNODE /opt/smartdc/bin/sdc-imgadm import -c none -f /tmp/$(basename $FILE) -m /tmp/$(basename $MF)
 
 if [[ "$NAME" == "sdcadm" ]]; then
+	ssh $HEADNODE /opt/smartdc/bin/sdc-imgadm import -c none -f /tmp/$(basename $FILE) -m /tmp/$(basename $MF)
 	IMGAPI=$(ssh $HEADNODE /opt/smartdc/bin/sdc-sapi --no-headers /services?name=imgapi | json -a metadata.SERVICE_DOMAIN)
 	ssh $HEADNODE /opt/smartdc/bin/sdcadm self-update -S http://$IMGAPI $UUID
 	exit 0
 fi
+
+ssh $HEADNODE /opt/smartdc/bin/sdc-imgadm import -f /tmp/$(basename $FILE) -m /tmp/$(basename $MF)
 
 ssh $HEADNODE /opt/smartdc/bin/sdcadm update -y $ROLE@$UUID || {
         #
