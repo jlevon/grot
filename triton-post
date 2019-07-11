@@ -3,19 +3,19 @@
 # Do some post-setup stuff
 
 host=root@$1
+machine=$1
 
 shift
 
 #set -e
 set -x
 
-keykill $host
+keykill $machine
 ssh-copy-id $host
-ssh $host sdc-usbkey mount
+ssh $host /opt/smartdc/bin/sdc-usbkey mount
 scp ~/.ssh/authorized_keys $host:/mnt/usbkey/config.inc/root.authorized_keys
 
 ssh $host zfs create zones/jlevon
-ssh $host /opt/smartdc/bin/sdc-usbkey mount
 
 ssh $host /opt/smartdc/bin/sdcadm post-setup common-external-nics
 ssh $host /opt/smartdc/bin/sdcadm post-setup cloudapi
@@ -44,7 +44,7 @@ sleep 60
 
 ssh $host /opt/smartdc/bin/sdc-useradm add-key poseidon /tmp/pkey.$$.pub
 
-ssh $host /opt/smartdc/bin/sapiadm update $(/opt/smartdc/bin/sdc-sapi /services?name=webapi | json -Ha uuid) metadata."MPU_ENABLE"=true
+ssh $host /opt/smartdc/bin/sapiadm update $(ssh $host /opt/smartdc/bin/sdc-sapi /services?name=webapi | json -Ha uuid) metadata."MPU_ENABLE"=true
 :
 echo "Now run:"
 
@@ -52,4 +52,3 @@ echo zlogin $manta0
 echo manta-deploy-lab && manta-adm alarm config update -y
 
 exit 0
-

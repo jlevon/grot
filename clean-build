@@ -7,6 +7,7 @@ export PATH=$PATH:~/src/grot/
 branch=$1
 shift
 
+echo -en "\033]0;$(basename $(pwd)): build\a"
 set -x
 
 for repo in . projects/illumos-extra projects/local/* ;
@@ -17,7 +18,7 @@ done
 (CODEMGR_WS=projects/illumos clean-illumos)
 
 #cp sample.configure.smartos configure.smartos
-./configure $*
+./configure -P root $*
 all-repos git checkout $branch
 nohup make live usb
 nohup make images-tar
