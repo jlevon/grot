@@ -18,14 +18,15 @@ set -e
 
 eval $(make print-NAME)
 BITSPATH=bits/$NAME
-STAMP=$(cat $BITSPATH/latest-build-stamp)
 
 if [[ "$NAME" == "sdcadm" ]]; then
 	make all publish
+	STAMP=$(cat $BITSPATH/latest-build-stamp)
 	FILE=$BITSPATH/$NAME-$STAMP.sh
 	MF=$BITSPATH/$NAME-$STAMP.imgmanifest
 else
 	make all buildimage publish
+	STAMP=$(cat $BITSPATH/latest-build-stamp)
 	FILE=$BITSPATH/$NAME-zfs-$STAMP.zfs.gz
 	MF=$BITSPATH/$NAME-zfs-$STAMP.imgmanifest
 fi
