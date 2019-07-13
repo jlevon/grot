@@ -13,4 +13,4 @@ bugid=$(git log --format=%B -1 $rev | head -1)
 #git format-patch --stdout -1 $rev >$rev.patch
 id=$(echo $bugid | awk '{print $1}')
 
-echo $* | cat ~/src/grot/codereview-mail.txt - | sed "s+WEBREV+$id+" | mutt -s "[PATCH] $bugid" -- $to
+echo $* | cat - ~/src/grot/codereview-mail.txt | sed "s+WEBREV+$id+" | mutt -s "[PATCH] $bugid" -- $to

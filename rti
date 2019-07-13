@@ -31,4 +31,4 @@ args="$args $bugid.mail_msg"
 args="$args $bugid.pbchk"
 
 
-echo $* | cat ~/src/grot/advocates-mail.txt - | mutt -s "[PATCH] $bug" $args -- $to
+echo $* | cat ~/src/grot/advocates-mail.txt - | sed "s/BUGID/$bugid/" | mutt -s "[PATCH] $bug" $args -- $to

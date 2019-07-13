@@ -10,6 +10,8 @@ title=$@
 shift
 #set -x
 
+[[ -n "$title" ]] || exit 1
+
 url="http://smartos.org/bugview/$smartos_bug"
 echo $url
 echo

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -x
+git log -1 --format=format:%B >/tmp/tmp.$$
+echo "Approved-by: $*" >>/tmp/tmp.$$
+git commit --amend -F /tmp/tmp.$$
+rm /tmp/tmp.$$

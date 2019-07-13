@@ -12,7 +12,7 @@ bug=$(git log --format=%B -1 $rev | head -1)
 bugid=$(echo $bug | awk '{print $1}')
 
 git checkout master
-git checkout -b rti.$bugid jlevon/rti
+git checkout -b rti.$bugid 
 git fetch origin
 git reset --hard origin/master
 git cherry-pick $rev
@@ -20,5 +20,6 @@ git cherry-pick $rev
 patchname=$(echo $bug | sed 's+ +-+g;s+/+-+g;')
 git format-patch --stdout -1 $rev >$patchname.patch
 git pbchk -p origin/master >$bugid.pbchk
+git push jlevon HEAD:rti.$bugid
 ./nightly ./illumos.sh
 cp  log/latest/mail_msg $bugid.mail_msg
