@@ -1,7 +1,11 @@
 #!/bin/bash
 
-set -x
+by=$*
+if [[ "$by" = "toomas" ]]; then
+	by="Toomas Soome <tsoome@me.com>"
+fi
+
 git log -1 --format=format:%B >/tmp/tmp.$$
-echo "Approved by: $*" >>/tmp/tmp.$$
+echo "Reviewed by: $by" >>/tmp/tmp.$$
 git commit --amend -F /tmp/tmp.$$
 rm /tmp/tmp.$$
