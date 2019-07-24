@@ -48,7 +48,7 @@ ssh $host /opt/smartdc/bin/sapiadm update $(ssh $host /opt/smartdc/bin/sdc-sapi 
 :
 echo "Now run:"
 
-echo zlogin $manta0
-echo manta-deploy-lab && manta-adm alarm config update -y
+echo "zlogin $manta0"
+echo "manta-deploy-lab && manta-adm alarm config update -y"
 
 exit 0

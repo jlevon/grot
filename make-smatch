@@ -5,5 +5,5 @@ set -e
 
 make clean >c.out 2>&1
 
-SHADOW_CCS=smatch,$CODEMGR_WS/usr/src/tools/proto/root_$MACH-nd/opt/onbld/bin/$MACH/smatch,smatch make install >m.out 2>&1
+SHADOW_CCS=smatch,$CODEMGR_WS/usr/src/tools/proto/root_$MACH-nd/opt/onbld/bin/$MACH/smatch,smatch make all install >m.out 2>&1 || /bin/true
 grep smatch: m.out || exit 0
