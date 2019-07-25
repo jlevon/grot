@@ -1,0 +1,77 @@
+{
+  "zonename": "45771091-e1af-e023-c88e-8e162396fdbe",
+  "autoboot": true,
+  "brand": "lx",
+  "limit_priv": "default",
+  "v": 1,
+  "create_timestamp": "2019-07-25T09:52:37.232Z",
+  "image_uuid": "7b5981c4-1889-11e7-b4c5-3f3bdfc9b88b",
+  "cpu_shares": 64,
+  "max_lwps": 4000,
+  "max_msg_ids": 4096,
+  "max_sem_ids": 4096,
+  "max_shm_ids": 4096,
+  "max_shm_memory": 1024,
+  "zfs_io_priority": 64,
+  "max_physical_memory": 1024,
+  "max_locked_memory": 1024,
+  "max_swap": 4096,
+  "cpu_cap": 100,
+  "billing_id": "495325ab-8f03-cd08-a585-a052deaec302",
+  "owner_uuid": "930896af-bf8c-48d4-885c-6573a94b1853",
+  "tmpfs": 1024,
+  "dns_domain": "local",
+  "archive_on_delete": true,
+  "kernel_version": "4.3.0",
+  "resolvers": [
+    "8.8.8.8",
+    "8.8.4.4"
+  ],
+  "alias": "foo",
+  "nics": [
+    {
+      "interface": "eth0",
+      "mac": "90:b8:d0:fa:d8:ec",
+      "vlan_id": 3315,
+      "nic_tag": "external",
+      "gateway": "172.26.15.1",
+      "gateways": [
+        "172.26.15.1"
+      ],
+      "netmask": "255.255.255.0",
+      "ip": "172.26.15.17",
+      "ips": [
+        "172.26.15.17/24"
+      ],
+      "network_uuid": "f99f38c0-f410-4346-b7cf-80afe8472b9c",
+      "mtu": 1500,
+      "primary": true
+    }
+  ],
+  "uuid": "45771091-e1af-e023-c88e-8e162396fdbe",
+  "zone_state": "running",
+  "zonepath": "/zones/45771091-e1af-e023-c88e-8e162396fdbe",
+  "hvm": false,
+  "zoneid": 560,
+  "zonedid": 69,
+  "last_modified": "2019-07-25T09:52:43.000Z",
+  "firewall_enabled": false,
+  "server_uuid": "44454c4c-4800-104c-8035-c6c04f544432",
+  "datacenter_name": "emy-15",
+  "platform_buildstamp": "20190723T225157Z",
+  "state": "running",
+  "boot_timestamp": "2019-07-25T09:52:41.000Z",
+  "init_restarts": 0,
+  "pid": 674699,
+  "customer_metadata": {
+    "root_authorized_keys": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDeKgPdKLUbrT8n+NfR9OVg0Rb3XZ0k2iadW/GPG+ur+xeTHDQusmNXH+asBWGLoFmwQSnEL63Pje4Po0bzs/geCyxdGrJ5E5H5jhnMASl11O/u7446TRO62Q7HGWni4TvHwRo65ZEDqEVPvsbnYt/odTgme7QOaCcuwtZDn5H/60+wXp3jGflOJMjnh/NWjMTb8yRwHV0fqlIj2XErPfgzThJboJRO0JCNDd0oKvff5ag+HnA+v/5Kn4TDHlnOvhI/o+O6eL7Oaa4qRf6TC1A4Lpw4xDQNW4lmHTsCsbpOY/EYAH6ezi2JnR8JawDdVtlYNKu0i18TRYI8BXir0XER root@headnode\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC+/qjODwYUnLB4IqLhK/ojCUZu7SdHsX9w5l0ERmgcW9Wk9bk1p0a+CCGJWLdeFYC1oV/8YVYB9jzp5lYCczu3gb4bm2bN0QBGVRd7/b2Ly3PipM4bJolXcwp7s/4Br/r2/puCVY4cBC+kKr7CZMNME3qkosJKvbAHTLJhTRS1cg+j5Jpikqtj+tkCssFxyxfo2msXMJs58AKb8u93iDPMapSoo8PYoEtjXjRREbG4Cy6IqvHKcFEJlVx4TtvMIsggLga3U4+HEj9rPL3FowIz4HRayObnO9ebFzFTslI7vCeVp+kn/4wK1sbipA7gZFJneMIcuUw0y46hmsRtm3Fx emy-15 sdc key\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtm2Y1mwZeboRdjuc07rywG+Nx/8KPzyPuAKN95wu8Uch/MlwmT7jAEW+9UrSzGrkKN/Ti3BkDY3SiW6f8aITfjixD2tdZlUVXmvIllDqwxyl7XazmTJmEQX1Zd+NG+pSrDTtWeXy7Mz7ntw2wPD2ea8J4cfIOLpHe1hvwDNPxlrSSgS7EtBhQqnI00DOH0S9un/AQo3DvajVD+P4Qyo2HU+mbYqX4+6/G+AndezFK29sDxJ8GgTiCjAwQsKnVN6ApFeRV0q46/CXZyO++tpBcKwiWybM8+/wAPOJ3HBt+tR+ZjhLpcDmycgRTcvi8aZUwTVAqU+GjPU4qu+n5QyA3 /home/jlevon/.ssh/id_rsa"
+  },
+  "internal_metadata": {},
+  "routes": {},
+  "tags": {},
+  "quota": 25,
+  "zfs_root_recsize": 131072,
+  "zfs_filesystem": "zones/45771091-e1af-e023-c88e-8e162396fdbe",
+  "zpool": "zones",
+  "snapshots": []
+}

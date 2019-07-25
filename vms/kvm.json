@@ -1,0 +1,54 @@
+{
+  "autoboot": true,
+  "brand": "kvm",
+  "cpu_shares": 128,
+  "max_lwps": 4000,
+  "max_physical_memory": 2304,
+  "max_locked_memory": 2304,
+  "max_swap": 8192,
+  "cpu_cap": 200,
+  "resolvers": [
+    "8.8.8.8",
+    "8.8.4.4"
+  ],
+  "alias": "kvm",
+  "ram": 2048,
+  "vcpus": 4,
+  "disks": [
+    {
+      "boot": true,
+      "model": "virtio",
+      "media": "disk",
+      "image_size": 10240,
+      "image_uuid": "616c7421-4b9a-49fe-989e-81eb19232b87",
+      "size": 10240
+    },
+    {
+      "boot": false,
+      "model": "virtio",
+      "media": "disk",
+      "size": 51200
+    }
+  ],
+  "nics": [
+    {
+      "interface": "net0",
+      "vlan_id": 3315,
+      "nic_tag": "external",
+      "gateway": "172.26.15.1",
+      "gateways": [
+        "172.26.15.1"
+      ],
+      "netmask": "255.255.255.0",
+      "ips": [
+        "172.26.15.116/24"
+      ],
+      "model": "virtio",
+      "mtu": 1500,
+      "primary": true
+    }
+  ],
+  "customer_metadata": {
+    "root_authorized_keys": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDeKgPdKLUbrT8n+NfR9OVg0Rb3XZ0k2iadW/GPG+ur+xeTHDQusmNXH+asBWGLoFmwQSnEL63Pje4Po0bzs/geCyxdGrJ5E5H5jhnMASl11O/u7446TRO62Q7HGWni4TvHwRo65ZEDqEVPvsbnYt/odTgme7QOaCcuwtZDn5H/60+wXp3jGflOJMjnh/NWjMTb8yRwHV0fqlIj2XErPfgzThJboJRO0JCNDd0oKvff5ag+HnA+v/5Kn4TDHlnOvhI/o+O6eL7Oaa4qRf6TC1A4Lpw4xDQNW4lmHTsCsbpOY/EYAH6ezi2JnR8JawDdVtlYNKu0i18TRYI8BXir0XER root@headnode\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC+/qjODwYUnLB4IqLhK/ojCUZu7SdHsX9w5l0ERmgcW9Wk9bk1p0a+CCGJWLdeFYC1oV/8YVYB9jzp5lYCczu3gb4bm2bN0QBGVRd7/b2Ly3PipM4bJolXcwp7s/4Br/r2/puCVY4cBC+kKr7CZMNME3qkosJKvbAHTLJhTRS1cg+j5Jpikqtj+tkCssFxyxfo2msXMJs58AKb8u93iDPMapSoo8PYoEtjXjRREbG4Cy6IqvHKcFEJlVx4TtvMIsggLga3U4+HEj9rPL3FowIz4HRayObnO9ebFzFTslI7vCeVp+kn/4wK1sbipA7gZFJneMIcuUw0y46hmsRtm3Fx emy-15 sdc key\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtm2Y1mwZeboRdjuc07rywG+Nx/8KPzyPuAKN95wu8Uch/MlwmT7jAEW+9UrSzGrkKN/Ti3BkDY3SiW6f8aITfjixD2tdZlUVXmvIllDqwxyl7XazmTJmEQX1Zd+NG+pSrDTtWeXy7Mz7ntw2wPD2ea8J4cfIOLpHe1hvwDNPxlrSSgS7EtBhQqnI00DOH0S9un/AQo3DvajVD+P4Qyo2HU+mbYqX4+6/G+AndezFK29sDxJ8GgTiCjAwQsKnVN6ApFeRV0q46/CXZyO++tpBcKwiWybM8+/wAPOJ3HBt+tR+ZjhLpcDmycgRTcvi8aZUwTVAqU+GjPU4qu+n5QyA3 /home/jlevon/.ssh/id_rsa"
+  }
+}
