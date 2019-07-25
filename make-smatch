@@ -1,16 +1,27 @@
 #!/bin/bash
 
 #set -x
-set -e
 
 echo 'making clean'
-make clean >c.out 2>&1
+make clean >c.out 2>&1 || {
+	echo "clean failed" >&2
+	exit 1
+}
 
 echo 'making smatch'
-SHADOW_CCS=smatch,$CODEMGR_WS/usr/src/tools/proto/root_$MACH-nd/opt/onbld/bin/$MACH/smatch,smatch make all install 2>&1 | tee m.out | grep smatch: || /bin/true
+export SHADOW_CCS=smatch,$CODEMGR_WS/usr/src/tools/proto/root_$MACH-nd/opt/onbld/bin/$MACH/smatch,smatch
 
-if !  grep smatch: m.out >/dev/null; then
-	exit 0
+ret=0
+
+make all install >m.out 2>&1 || ret=1
+
+if grep smatch: m.out; then
+	ret=1
 fi
 
-echo 'smatch failed !!!'
+if [[ "$ret" = 1 ]]; then
+	echo 'make with smatch failed'
+	tail m.out
+fi
+
+exit $ret

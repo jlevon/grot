@@ -25,6 +25,7 @@ ssh $host /opt/smartdc/bin/sdcadm post-setup dev-sample-data
 ssh-add -L | head -1 >/tmp/pkey.$$.pub
 scp /tmp/pkey.$$.pub $host:/tmp/pkey.$$.pub
 ssh $host /opt/smartdc/bin/sdc-useradm add-key admin /tmp/pkey.$$.pub
+ssh $host /opt/smartdc/bin/sdc-useradm replace-attr admin approved_for_provisioning true
 
 
 if [[ "$1" != "manta" ]] ; then
