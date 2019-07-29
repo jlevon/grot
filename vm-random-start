@@ -1,5 +1,7 @@
 
-vms=($(vmadm list | grep BHYV | awk '{print $1}'))
+# vms=($(vmadm list | grep BHYV | awk '{print $1}'))
+
+vms=($*)
 
 nr=${#vms[@]}
 
@@ -15,4 +17,6 @@ while :; do
 		vmadm start $vm
 	fi
 	date
+
+	sleep $(( RANDOM % 10 ))
 done

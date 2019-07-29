@@ -11,7 +11,7 @@ fi
 if [[ -z "$1" ]]; then
         HEADNODE=root@coal
 else
-        HEADNODE=$1
+        HEADNODE=root@$1
 fi
 
 set -e
