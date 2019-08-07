@@ -21,5 +21,5 @@ patchname=$(echo $bug | sed 's+ +-+g;s+/+-+g;')
 git format-patch --stdout -1 $rev >$patchname.patch
 git pbchk -p origin/master >$bugid.pbchk
 git push jlevon HEAD:rti.$bugid
-./nightly ./illumos.sh
+../nightly ../illumos.sh
 cp  log/latest/mail_msg $bugid.mail_msg
