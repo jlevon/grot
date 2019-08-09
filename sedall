@@ -1,3 +1,5 @@
 #!/bin/bash
 
-find . -type f | xargs sed -i $1
+# perl instead of sed, so we don't add newlines to files
+
+find . -type f | xargs perl -pi -e $1

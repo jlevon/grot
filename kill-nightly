@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -x
+pid=$(pgrep -f /nightly)
+taskid=$(ps -o taskid -p $pid | tail -1)
+pkill -T $taskid
+sleep 3
+pkill -9 -T $taskid
