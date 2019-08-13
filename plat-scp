@@ -9,3 +9,7 @@ ssh $host /opt/smartdc/bin/sdc-usbkey mount
 latest=$(ssh $host /opt/smartdc/bin/sdcadm platform list -j | json -a -c 'this.default===true' version)
 echo "splatting onto $host:/mnt/usbkey/os/$latest/platform/"
 scp -r output/platform-latest/* $host:/mnt/usbkey/os/$latest/platform/
+
+# for the CNs
+scp -r output/platform-latest/* $host:/usbkey/os/$latest/platform/
+

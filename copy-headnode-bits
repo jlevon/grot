@@ -3,7 +3,7 @@
 set -x
 set -e
 
-dest=~/src/sdc-headnode/cache/
+dest=$1/cache/
 
 function docopy() {
 	file=$1

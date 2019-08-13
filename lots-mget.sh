@@ -7,6 +7,7 @@ paths=$(mfind -t o /poseidon/stor/logs/ | head -$count)
 i=0
 
 set -e
+#set -x
 
 while :; do
 	echo "Start run $i $(date)"

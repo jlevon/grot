@@ -14,6 +14,8 @@ wait
 
 i=0
 
+#set -x
+
 while :; do
 	echo "Start run $i $(date)"
 	for i in $(seq 0 $count); do

@@ -1,5 +1,5 @@
 
-# vms=($(vmadm list | grep BHYV | awk '{print $1}'))
+# vms=($(vmadm list -H | grep BHYV | awk '{print $1}'))
 
 vms=($*)
 
