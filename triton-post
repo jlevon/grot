@@ -21,6 +21,9 @@ ssh $host /opt/smartdc/bin/sdcadm post-setup common-external-nics
 ssh $host /opt/smartdc/bin/sdcadm post-setup cloudapi
 ssh $host /opt/smartdc/bin/sdcadm post-setup dev-headnode-prov
 ssh $host /opt/smartdc/bin/sdcadm post-setup dev-sample-data
+ssh $host /opt/smartdc/bin/sdcadm post-setup docker
+ssh $host /opt/smartdc/bin/sdcadm experimental update dockerlogger
+
 
 ssh-add -L | head -1 >/tmp/pkey.$$.pub
 scp /tmp/pkey.$$.pub $host:/tmp/pkey.$$.pub
