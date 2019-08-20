@@ -1,6 +1,12 @@
 #!/bin/bash
 
+if [[ $1 == "all" ]]; then
+	files=$(git pbchk -c copyright | grep -v Copyrights: | awk -F: '{print $1}')
+else
+	files="$@"
+fi
+
 year=$(date +%Y)
-for file in "$@"; do
+for file in $files; do
 	gsed -i "s/Copyright.*Joyent.*$/Copyright $year Joyent, Inc./" "$file"
 done
