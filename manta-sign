@@ -1,0 +1,44 @@
+#!/opt/local/bin/node
+
+/*
+ * Use ssh agent to sign data for use in e.g.  Authorization header, without
+ * needing to supply passphrase and/or private key file to openssl dgst -sign
+ *
+ * Expects $MANTA_KEY_ID to be set (using the old a0:c8:... format),
+ * and ssh agent to be configured for it.
+ *
+ * usage: echo -n "date: $now" | manta-sign | ...
+ */
+
+var agent = require('sshpk-agent');
+var sshpk = require('sshpk');
+var fs = require('fs');
+
+var client = new agent.Client();
+
+client.listKeys(function (err, keys) {
+  if (err) {
+    console.log(err);
+    return;
+  }
+
+  var key;
+
+  keys.forEach(function (elem) {
+      var fingerprint = elem.fingerprint('md5').toString();
+      if (fingerprint === process.env.MANTA_KEY_ID)
+          key = elem;
+  });
+
+  if (!key) {
+    console.log('couldn\'t find key ' + process.env.MANTA_KEY_ID);
+    process.exit(1);
+  }
+
+  var data = fs.readFileSync(0);
+  client.sign(key, data, function (err, signature) {
+    /* signature is an sshpk.Signature object */
+    console.log(signature.toString());
+  });
+});
+

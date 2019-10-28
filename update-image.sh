@@ -33,6 +33,11 @@ fi
 
 UUID=$(json uuid <$MF)
 ROLE=$(json name <$MF | sed 's+manta-++')
+
+if [[ "$ROLE" = "deployment" ]]; then
+	ROLE=manta0
+fi
+
 scp $FILE $MF $HEADNODE:/tmp/
 
 if [[ "$NAME" == "sdcadm" ]]; then
