@@ -1,0 +1,24 @@
+#!/opt/local/bin/node
+
+var mod_sdcauth = require('smartdc-auth');
+
+var keyRing = new mod_sdcauth.KeyRing();
+keyRing.list(function (err, keyMap) {
+    if (err) {
+        /* ... handle err ... */
+        return;
+    }
+    /* The keyMap is an object that maps keyId => [keyPair] */
+    var keyIds = Object.keys(keyMap);
+    keyIds.forEach(function (keyId) {
+        var keys = keyMap[keyId];
+        console.log('%s:', keyId);
+        keys.forEach(function (keyPair) {
+            var key = keyPair.getPublicKey();
+            console.log('  %s (%d bit): %s',
+              key.type, key.size, key.comment);
+            if (keyPair.isLocked())
+                console.log('    !! password protected');
+        });
+    });
+});

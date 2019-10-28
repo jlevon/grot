@@ -1,0 +1,17 @@
+#!/bin/bash
+
+lbs=$(vmadm list -Ho uuid alias=~loadbalancer)
+
+muskies=$(vmadm list -Ho uuid alias=~webapi)
+
+logs=""
+
+for lb in $lbs; do
+	logs="$logs /zones/$lb/root/var/log/haproxy.log"
+done
+
+for muskie in $muskies; do
+	logs="$logs /zones/$muskie/root/var/log/muskie.log"
+done
+
+grep $1 $logs

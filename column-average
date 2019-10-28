@@ -1,0 +1,8 @@
+#!/bin/bash
+
+nawk -F' ' "{
+	if (\$$1 == "Nan") next;
+	if (\$$1 < 100) next;
+	if (\$$1 > 500) next;
+	sum += \$$1 ;
+} END { print sum / NR }"

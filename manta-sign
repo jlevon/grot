@@ -26,7 +26,9 @@ client.listKeys(function (err, keys) {
 
   keys.forEach(function (elem) {
       var fingerprint = elem.fingerprint('md5').toString();
-      if (fingerprint === process.env.MANTA_KEY_ID)
+      var fingerprint2 = elem.fingerprint('sha256').toString();
+      if (fingerprint === process.env.MANTA_KEY_ID ||
+          fingerprint2 === process.env.MANTA_KEY_ID)
           key = elem;
   });
 
