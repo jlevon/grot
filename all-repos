@@ -1,6 +1,0 @@
-#!/bin/bash
-
-for repo in . projects/illumos projects/illumos-extra projects/local/* ;
-do
-	(cd $repo && echo " -------- $repo --------- " && "$@")
-done

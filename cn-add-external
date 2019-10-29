@@ -1,0 +1,20 @@
+#!/bin/bash
+
+cn=$1
+ip=172.26.15.85
+vlan_id=3315
+owner=$(sdc-useradm get admin | json uuid)
+
+sdc-napi /nics/e4:11:5b:97:83:49 -X PUT -d '{ "nic_tags_provided" : "external" }'
+
+sdc-napi /nics -X POST -d @- <<EOF
+{
+ "owner_uuid": "$owner",
+ "belongs_to_type": "server",
+ "belongs_to_uuid": "$cn",
+ "cn_uuid": "$cn",
+ "ip": "$ip",
+ "vlan_id": "$vlan_id",
+ "nic_tag": "external"
+}
+EOF

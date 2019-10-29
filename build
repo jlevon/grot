@@ -7,6 +7,6 @@ set -x
 
 echo -en "\033]0;$(basename $(pwd)): build\a"
 #./configure $*
-#all-repos git checkout $branch
+#all git checkout $branch
 nohup make live usb
 nohup make images-tar

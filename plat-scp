@@ -1,8 +1,8 @@
 #!/bin/bash
 
-host=$1
+host=root@$1
 
-[[ -n "$host" ]] || host=root@volcano
+[[ -n "$1" ]] || host=root@volcano
 
 ssh $host /opt/smartdc/bin/sdc-usbkey mount
 
