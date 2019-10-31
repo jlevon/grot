@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# workaround MANTA-4582
+uuid=$(sapiadm showapp -j manta | grep \"moray\" | json -a uuid)
+sapiadm update $uuid metadata.MORAY_FAST_CRC_MODE=1
+uuid=$(sapiadm showapp -j manta | grep \"electric-moray\" | json -a uuid)
+sapiadm update $uuid metadata.MORAY_FAST_SERVER_CRC_MODE=1
