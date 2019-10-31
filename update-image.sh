@@ -4,7 +4,7 @@ set -o xtrace
 
 # lazy usage message and args parsing
 if [[ "$#" -ne 1 || $(echo $* | egrep -e '-h' -e 'help') ]]; then
-        echo "Usage: update-image  [headnode ssh address]"
+        echo "Usage: update-image headnode"
         exit 2
 fi
 

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+uuid=$(updates-imgadm list -H -o=uuid --latest name=manta-loadbalancer)
+sdc-imgadm import -S https://updates.joyent.com/ $uuid
+echo $uuid
