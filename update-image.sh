@@ -59,5 +59,5 @@ ssh $HEADNODE /opt/smartdc/bin/sdcadm update -y $ROLE@$UUID || {
 	CURRENT_UUID=$(ssh $HEADNODE /opt/smartdc/bin/manta-adm show -js | json $HN_UUID.$ROLE | json -ka)
 
 	ssh $HEADNODE "/opt/smartdc/bin/manta-adm show -js | sed "s+$CURRENT_UUID+$UUID+" >/tmp/manta.json"
-	ssh $HEADNODE "/opt/smartdc/bin/manta-adm update -l /dev/stdout -y /tmp/manta.json 2>&1 | bunyan"
+	ssh $HEADNODE "/opt/smartdc/bin/manta-adm update --experimental -l /dev/stdout -y /tmp/manta.json 2>&1 | bunyan"
 }
