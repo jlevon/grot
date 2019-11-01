@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# "Just the facts, ma'am"
+dig +nocmd +nocomments +noquestion +nostats $*
