@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# squash current diff, staged, or current commit into a specific commit
+
+git commit -a --fixup $1
+
+git rebase --autosquash -i master

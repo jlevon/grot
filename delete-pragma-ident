@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# delete pragma indent line and any following blank line
+
+for file in $@; do
+	gsed -i '/^#pragma.*ident/ { N; /^#pragma.*ident.*\n$/d ; s/^#pragma.*ident.*\n\(.*\)/\1/ }' $file
+done
