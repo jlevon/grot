@@ -2,6 +2,7 @@
 
 set -e
 
-uuid=$(updates-imgadm list -H -o=uuid --latest name=manta-loadbalancer)
+# maybe version=~buckets etc.
+uuid=$(updates-imgadm list -H -o=uuid --latest name=$*)
 sdc-imgadm import -S https://updates.joyent.com/ $uuid
 echo $uuid
