@@ -1,0 +1,1 @@
+javascript: ( function() { var n_to_open = 0; var n_to_open = 0; var dl = document.querySelectorAll(".pathLink"); var dll = dl.length; if (!dll) { alert('no links'); } else { if (confirm('Open ' + dll + ' links in new windows?')) { for (i = 0; i < dll; ++i) { window.open(dl[i].href); } } } })();
