@@ -4,4 +4,4 @@ host=$1
 
 [[ -n $host ]] || exit 1
 
-gsed -i "/^$1,.*$/d" ~/.ssh/known_hosts
+sed -i "/^$1,.*$/d" ~/.ssh/known_hosts
