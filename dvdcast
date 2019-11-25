@@ -1,0 +1,9 @@
+
+lsdvd | grep ^Title | while read ln; do
+	echo $ln
+done
+
+echo "Which title?"
+read title
+
+vlc "dvd://#$title" --sout "#chromecast" --audio-language eng --demux-filter=demux_chromecast  --sout-chromecast-ip=192.168.178.41
