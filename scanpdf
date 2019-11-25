@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -e
+
+scanimage --resolution 300 --format=tiff | convert tiff:- $1
+evince $1
