@@ -18,6 +18,7 @@ if [[ -z "$tids" ]]; then
 	echo "No userspace threads left for $pid"
 	mdb -ke "0t$pid::pid2proc | ::findstack -v"
 	exit 0
+fi
 
 for tid in $tids; do
 	mdbin+="::echo ========== $pid/$tid ============================ ;"
