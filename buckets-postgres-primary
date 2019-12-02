@@ -1,0 +1,10 @@
+#!/bin/bash
+
+shard=$1
+
+shard_inst=$(manta-adm show buckets-postgres -o shard,zonename -H | egrep "^ *$shard " | head -1 | awk '{print $2}')
+shard_primary=$(manta-oneach -J -z $shard_inst 'manatee-adm pg-status -r primary -H -o peername 2>/dev/null' | json result.stdout)
+shard_primary_ip=$(manta-adm show buckets-postgres -o zonename,primary_ip | grep "$shard_primary" | awk '{print $2}')
+
+echo "primary for $shard is $shard_primary ip $shard_primary_ip"
+
