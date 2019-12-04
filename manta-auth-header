@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# writes auth headers til file for curl -H @mh
+
+# this can only support old-style fingerprints (MD5:a0:cf:... etc)
+
+insecure="--insecure"
+alg=rsa-sha256
+#set -x
+
+trimmed_key=$(echo $MANTA_KEY_ID | sed 's/^SHA256://' | sed 's/^MD5://')
+keyId=/$MANTA_USER/keys/$trimmed_key
+now="date: $(date -u "+%a, %d %h %Y %H:%M:%S GMT")"
+sig=$(echo -n "$now" | manta-sign | tr -d '\n')
+
+cat - >mh <<EOF
+$now
+Authorization: Signature keyId="$keyId",algorithm="$alg",signature="$sig"
+EOF
+
+echo --insecure -H @mh
