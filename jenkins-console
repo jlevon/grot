@@ -1,7 +1,11 @@
 #!/bin/bash
 
 JOB_NAME=$1
+JOB_ID=$2
+[[ -n $JOB_ID ]] || JOB_ID=lastBuild
 
 token=$(cat ~/.jenkinstoken)
 
-curl -u "john.levon:$token" -O "https://jenkins.joyent.us/job/${JOB_NAME}/lastBuild/consoleText"
+echo "Grabbing https://jenkins.joyent.us/job/${JOB_NAME}/${JOB_ID}/consoleText"
+curl -u "john.levon:$token" -O "https://jenkins.joyent.us/job/${JOB_NAME}/${JOB_ID}/consoleText"
+

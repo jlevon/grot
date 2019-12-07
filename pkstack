@@ -14,6 +14,12 @@ fi
 
 mdbin=""
 
+if [[ "$tids" -eq 0 ]]; then
+	echo "No userspace threads left for $pid"
+	mdb -ke "0t$pid::pid2proc | ::walk thread | ::findstack -v"
+	exit 0
+fi
+
 for tid in $tids; do
 	mdbin+="::echo ========== $pid/$tid ============================ ;"
 	mdbin+=$(pstack $pid/$tid | sed 's/\(.*\)/; ::echo "\1"/')
