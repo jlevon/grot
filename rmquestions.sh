@@ -6,4 +6,9 @@ for i in "$@"; do
 		echo mv "$i" "$fixed"
 		mv "$i" "$fixed"
 	fi
+	fixed="${i%\%3f*}"
+	if [ "$i" != "$fixed" ]; then
+		echo mv "$i" "$fixed"
+		mv "$i" "$fixed"
+	fi
 done
