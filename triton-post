@@ -37,7 +37,9 @@ fi
 
 [[ -f ~/src/lab/emy-15.manta.json ]] || exit 1
 
-ssh $host /usbkey/scripts/setup_manta_zone.sh
+# old way
+#ssh $host /usbkey/scripts/setup_manta_zone.sh
+ssh $host /opt/smartdc/bin/sdcadm post-setup manta --mantav2
 
 scp ~/src/lab/emy-15.manta.json $host:/zones/jlevon/
 manta0=$(ssh $host vmadm lookup alias=manta0)

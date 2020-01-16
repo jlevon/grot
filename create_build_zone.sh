@@ -18,6 +18,7 @@ add dataset ; set name=zones/$name/export ; end ;
 EOF
 
 dladm create-vnic -l ixgbe1 -v 3307 $vnic
+zfs create -p zones/$name/export
 zoneadm -z $name install
 zoneadm -z $name boot
 
@@ -44,7 +45,7 @@ mv /tmp/shadow.$$ /zones/$name/root/etc/shadow
 echo "export PATH=\$PATH:/opt/onbld/bin/:/opt/bin:/usr/node/0.12/bin/:/usr/sbin:/export/home/gk/node_modules/.bin/" >>/zones/$name/root/export/home/gk/.bash_profile
 echo "export MANPATH=\$MANPATH:/opt/onbld/man:/opt/share/man" >>/zones/$name/root/export/home/gk/.bash_profile
 
-zlogin $name pkg install git exuberant-ctags build-essential runtime/python-35 developer/gcc-7 nodejs
+zlogin $name pkg install git exuberant-ctags build-essential runtime/python-35 developer/gcc-7 nodejs distribution-constructor mutt
 zlogin $name npm install -g manta
 
 zlogin -l gk $name git clone https://github.com/illumos/illumos-gate.git
@@ -57,6 +58,9 @@ cp /opt/etc/illumos.sh /zones/$name/root/export/home/gk/
 zlogin $name chown gk /export/home/gk/illumos.sh
 zlogin -l gk $name cp illumos-gate/usr/src/tools/scripts/nightly.sh .
 zlogin -l gk $name chmod +x nightly.sh
+
+zlogin -l gk $name svccfg -s application/pkg/server setprop pkg/inst_root=/export/home/gk/illumos-gate/packages/i386/nightly-nd/repo.redist/
+zlogin -l gk $name svcadm refresh application/pkg/server
 
 echo
 echo

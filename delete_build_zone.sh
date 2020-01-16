@@ -6,11 +6,12 @@ name=$1
 
 vnic=${name}0
 
-set -e
+#set -e
 set -x
 
 zoneadm -z $name halt
 zoneadm -z $name uninstall -F
-zonecfg -z $name delete
+zonecfg -z $name delete -F
+zfs destroy -r zones/$name
 
 dladm delete-vnic $vnic
