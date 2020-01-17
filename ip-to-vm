@@ -1,0 +1,18 @@
+#!/bin/bash
+
+for ip in "$@"; do
+	sdc-vmapi --no-headers /vms | /usr/node/bin/node -e "
+		const fs = require('fs');
+		const j = JSON.parse(fs.readFileSync('/dev/stdin'));
+
+		j.forEach(function (vm) {
+			var found = vm.nics.some(function (nic) {
+				return (nic.ip === \"$ip\");
+			});
+
+			if (found) {
+				console.log(vm.alias);
+			}
+		});
+	"
+done
