@@ -49,15 +49,20 @@ fi
 
 ssh $HEADNODE /opt/smartdc/bin/sdc-imgadm import -f /tmp/$(basename $FILE) -m /tmp/$(basename $MF)
 
-ssh $HEADNODE /opt/smartdc/bin/sdcadm update -y $ROLE@$UUID || {
-        #
-        # Manta updates are handled by manta-adm rather than sdcadm
-        #
-        echo "Image update failed, perhaps this is a manta image?"
+ssh $HEADNODE /opt/smartdc/bin/sdcadm update -y $ROLE@$UUID && exit 0
 
-	HN_UUID=$(ssh $HEADNODE /opt/smartdc/bin/sdc-cnapi --no-headers /servers | json -a -c 'hostname == "headnode"' uuid)
-	CURRENT_UUID=$(ssh $HEADNODE /opt/smartdc/bin/manta-adm show -js | json $HN_UUID.$ROLE | json -ka)
+#
+# Manta updates are handled by manta-adm rather than sdcadm
+#
+echo "Image update failed, trying as a manta image instead"
 
-	ssh $HEADNODE "/opt/smartdc/bin/manta-adm show -js | sed "s+$CURRENT_UUID+$UUID+" >/tmp/manta.json"
-	ssh $HEADNODE "/opt/smartdc/bin/manta-adm update --experimental -l /dev/stdout -y /tmp/manta.json 2>&1 | bunyan"
-}
+
+MROLE=${ROLE/mantav?-/}
+
+ssh $HEADNODE "/opt/smartdc/bin/manta-adm show -js >/tmp/manta.json"
+
+HN_UUID=$(ssh $HEADNODE /opt/smartdc/bin/sdc-cnapi --no-headers /servers | json -a -c 'hostname == "headnode"' uuid)
+CURRENT_UUID=$(ssh $HEADNODE cat /tmp/manta.json | json $HN_UUID.$MROLE | json -ka)
+
+ssh $HEADNODE "sed -i\"\" -e s+$CURRENT_UUID+$UUID+ /tmp/manta.json"
+ssh $HEADNODE "/opt/smartdc/bin/manta-adm update --skip-verify-channel --experimental -l /dev/stdout -y /tmp/manta.json 2>&1 | bunyan"
