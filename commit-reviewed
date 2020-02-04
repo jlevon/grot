@@ -3,6 +3,8 @@
 by=$*
 if [[ "$by" = "toomas" ]]; then
 	by="Toomas Soome <tsoome@me.com>"
+elif [[ "$by" = "rm" ]]; then
+	by="Robert Mustacchi <rm@fingolfin.org>"
 fi
 
 git log -1 --format=format:%B >/tmp/tmp.$$

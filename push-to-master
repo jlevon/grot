@@ -79,5 +79,11 @@ echo "----> Changes to push:"
 git show --pretty=fuller origin/master..HEAD
 
 echo
+echo "----> history"
+
+git log origin/master^..HEAD
+
+echo
 echo "----> If you're happy:"
 echo "    git push -n origin HEAD:master"
+

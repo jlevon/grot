@@ -1,7 +1,14 @@
 #!/bin/bash
 
+a=$*
+if [[ "$a" = "rm" ]]; then
+	a="Robert Mustacchi <rm@fingolfin.org>"
+elif [[ "$a" = "danmcd" ]]; then
+	a="Dan McDonald <danmcd@joyent.com>"
+fi
+
 set -x
 git log -1 --format=format:%B >/tmp/tmp.$$
-echo "Approved by: $*" >>/tmp/tmp.$$
+echo "Approved by: $a" >>/tmp/tmp.$$
 git commit --amend -F /tmp/tmp.$$
 rm /tmp/tmp.$$
