@@ -2,5 +2,5 @@
 
 file=$(ssh movement@movementarian.org ls -1rt | grep -v Mail | tail -1)
 
-scp movement@movementarian.org:"${file// /\\ }" ~/
+scp movement@movementarian.org:"${file// /\\ }" .
 xdg-open "$file"
