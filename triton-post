@@ -39,7 +39,7 @@ fi
 
 # old way
 #ssh $host /usbkey/scripts/setup_manta_zone.sh
-ssh $host /opt/smartdc/bin/sdcadm post-setup manta --mantav2
+ssh $host /opt/smartdc/bin/sdcadm post-setup manta --mantav2 --yes
 
 scp ~/src/lab/emy-15.manta.json $host:/zones/jlevon/
 manta0=$(ssh $host vmadm lookup alias=manta0)
