@@ -1,6 +1,6 @@
 Please review
 
-http://cr.illumos.org/~webrev/jlevon/WEBREV
+REVIEW_URL
 
 thanks
 john

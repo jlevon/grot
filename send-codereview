@@ -3,14 +3,25 @@
 rev=$1
 shift
 
-set -x
+[[ -n "$rev" ]] || rev=HEAD
 set -e
 
 to=levon@movementarian.org
 to=developer@lists.illumos.org
 
-bugid=$(git log --format=%B -1 $rev | head -1)
-#git format-patch --stdout -1 $rev >$rev.patch
-id=$(echo $bugid | awk '{print $1}')
+tmp=$(mktemp)
+git log --format=%b -1 $rev >$tmp
+id=$(cat $tmp | head -1 | awk '{print $1}')
 
-echo $* | cat - ~/src/grot/codereview-mail.txt | sed "s+WEBREV+$id+" | mutt -s "[PATCH] $bugid" -- $to
+REVIEW_URL=http://cr.illumos.org/~webrev/jlevon/$id
+
+if [[ "$rev" = "HEAD" ]]; then
+	if grep "Change-Id:" "$tmp" >/dev/null; then
+		REVIEW_URL=$(gerrit-url)
+	fi
+fi
+
+bugid=$(git log --format=%B -1 $rev | head -1)
+
+echo $* | cat - ~/src/grot/codereview-mail.txt | sed "s,REVIEW_URL,$REVIEW_URL," | mutt -s "[PATCH] $bugid" -- $to
+rm $tmp
