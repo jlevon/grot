@@ -6,8 +6,8 @@ shift
 [[ -n "$rev" ]] || rev=HEAD
 set -e
 
-to=developer@lists.illumos.org
 to=levon@movementarian.org
+to=developer@lists.illumos.org
 
 set -x
 tmp=$(mktemp)
@@ -23,7 +23,7 @@ if [[ "$rev" = "HEAD" ]]; then
 	fi
 fi
 
-title=$(cat $tmp)
+title=$(cat $tmp | head -1)
 
 echo $* | cat - ~/src/grot/codereview-mail.txt | sed "s,REVIEW_URL,$REVIEW_URL," | mutt -s "[PATCH] $title" -- $to
 rm $tmp
