@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python -u
 
 #
 # Not going to win any awards this one, is it?
@@ -26,7 +26,7 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 # in seconds
-settle_time = 0.2
+settle_time = 0.1
 bounce_time = 1
 
 def notify():
@@ -35,12 +35,14 @@ def notify():
     msg = MIMEText("At %s" % datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     msg["From"] = "doorbell <levon@movementarian.org>"
     msg["To"] = "John Levon <john.levon@gmail.com>"
-    msg["Subject"] = "Doorbell is ringing"
+    msg["Subject"] = "Someone is ringing the doorbell"
 
     p = Popen(["/usr/sbin/sendmail", "-f", "levon@movementarian.org", "-t", "-oi"], stdin=PIPE)
-    p.communicate(msg.as_string())
+    p.stdin.write(msg.as_string())
+    #p.communicate(msg.as_string())
     while True:
-        os.system('ssh jlevon@kent mpg123 Dropbox/personal/doorbell.mp3')
+        #os.system('ssh jlevon@kent mpg123 Dropbox/personal/doorbell.mp3')
+	os.system('aplay -D plughw:1,0 doorbell.wav')
         input_state = GPIO.input(18)
         if input_state:
             break
