@@ -1,0 +1,5 @@
+#!/bin/bash
+
+for i in $*; do
+	echo $(($(echo $i | cut -d: -f1) * 60 + $(echo $i | cut -d: -f2)))
+done
