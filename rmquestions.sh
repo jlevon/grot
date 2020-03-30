@@ -12,3 +12,9 @@ for i in "$@"; do
 		mv "$i" "$fixed"
 	fi
 done
+
+for i in MSR*; do
+set -x
+	nr=$(echo $i | sed 's+MSR++;s+_Podcast.mp3++')
+	id3v2 -a "Milk Street Radio" -A "Milk Street Radio" -g 186 -t "$nr" $i
+done

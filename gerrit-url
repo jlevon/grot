@@ -1,0 +1,16 @@
+#!/bin/bash
+
+rev=HEAD
+
+tmp=$(mktemp)
+git log --format=%b -1 $rev >$tmp
+
+id=$(grep Change-Id $tmp | sed 's+^.*: ++')
+
+origin=$(git remote get-url origin | sed 's+.*@\(.*\):.*+\1+')
+
+# endpoint output has non-json junk!!
+codeid=$(curl -s https://$origin/changes/$id | grep _number | sed 's+.*_number": \(.*\),+\1+')
+
+echo https://$origin/c/illumos-gate/+/$codeid
+rm $tmp

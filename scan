@@ -1,0 +1,5 @@
+#!/bin/bash
+
+sudo scanimage --resolution 300 --format=pnm >a.pnm
+convert a.pnm $1
+evince $1 &

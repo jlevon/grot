@@ -1,0 +1,12 @@
+#!/usr/bin/python3
+
+import sys
+
+password = sys.argv[1]
+
+from rethinkdb import r
+
+conn = r.connect(password=password)
+
+r.db_drop('thoth').run(conn)
+
