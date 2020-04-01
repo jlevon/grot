@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -e
+set -x
+
+dest=$1
+
+ssh root@$dest /opt/smartdc/bin/sdc-usbkey mount
+dev=$(ssh root@$dest mount | grep /mnt/usbkey | awk '{print $3}')
+efidev=${dev%s2}s0
+
+ssh root@$dest mkdir -p /mnt/u
+ssh root@$dest mount -F pcfs $efidev /mnt/u
+scp ipxe.efi root@$dest:/mnt/u/efi/boot/bootx64.efi
+ssh root@$dest umount /mnt/u
+
+scp ipxe.efi ipxe.lkrn root@$dest:/mnt/usbkey/boot/
