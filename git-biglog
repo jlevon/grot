@@ -1,2 +1,2 @@
 #!/bin/bash
-git log --simplify-merges --graph $*
+git log --format=fuller --simplify-merges --graph $*
