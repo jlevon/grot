@@ -1,0 +1,11 @@
+#!/bin/bash
+
+dir=$(mktemp -d -p /tmp)
+
+ripmime -i - -d $dir --name-by-type
+
+cat $dir/text-html* | w3m -no-mouse -o display_link \
+    -o display_link_number -T text/html | \
+    sed 's!https*://.*!\x1B]8;;&\x1B\\&\x1B]8;;\x1B\\!g' | less -rX
+
+rm -rf $dir
