@@ -1,0 +1,28 @@
+#!/usr/bin/python3
+
+# add something to ourgroceries
+
+from ourgroceries import OurGroceries
+
+import asyncio
+import json
+import sys
+import os
+
+item = ' '.join(sys.argv[1:])
+
+f = open(os.path.expanduser('~/.ourgroceriesrc'))
+login = json.load(f)
+
+og = OurGroceries(login['username'], login['password'])
+
+loop = asyncio.get_event_loop()
+
+loop.run_until_complete(og.login())
+#asyncio.create_task(og.login())
+
+for list in loop.run_until_complete(og.get_my_lists())['shoppingLists']:
+	if list['name'] != "shopping":
+		continue
+
+	loop.run_until_complete(og.add_item_to_list(list['id'], item))
