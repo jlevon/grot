@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# enable/disable EFI boot for a KVM instance
+
+vm=$1
+onoff=$2
+
+if [[ $onoff = "on" ]]; then
+	virsh dumpxml $vm | \
+	    xmlstarlet ed -s /domain/os -t elem -n loader  -v /usr/share/OVMF/OVMF_CODE.fd | \
+	    xmlstarlet ed -i /domain/os/loader -t attr -n readonly -v yes | \
+	    xmlstarlet ed -i /domain/os/loader -t attr -n type -v pflash | \
+	    xmlstarlet ed -s /domain/os -t elem -n nvram -v /var/lib/libvirt/qemu/nvram/generic_VARS.fd \
+	    >a.xml
+else
+	virsh dumpxml $vm | \
+	    xmlstarlet ed -d /domain/os/loader | \
+	    xmlstarlet ed -d /domain/os/nvram \
+	    >a.xml
+fi
+
+virsh define a.xml
