@@ -1,0 +1,3 @@
+#!/usr/bin/env perl -l
+
+print $ARGV[0] x $ARGV[1];

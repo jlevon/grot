@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo export COLUMNS=$(tput cols)
+echo export LINES=$(tput lines)
