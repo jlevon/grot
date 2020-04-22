@@ -6,10 +6,13 @@ var net = require('net');
 
 var path = '/tmp/haproxy';
 
+var cmd = process.argv.slice(2).join(' ') + '\n';
+console.log('running ' + cmd);
+
 var client = net.connect(path, function (err) {
   if (err)
     process.exit(1);
-  client.end(process.argv[1] + '\n');
+  client.end(cmd);
 });
 
 client.on('data', function(data) {
