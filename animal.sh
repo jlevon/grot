@@ -12,20 +12,21 @@ totalstr=$((${#array[@]}))
 
 actions=("stop -f" "start" "reboot")
 totalactions=$((${#actions[@]}))
-echo $totalstr
-echo $totalactions
 while :; do
-	randomnum=$(($(($RANDOM % $totalstr)) + 0))
-	echo $randomnum
-	uuid=$(echo ${array[$randomnum]})
+	while :; do
+		randomnum=$(($(($RANDOM % $totalstr)) + 0))
+		uuid=$(echo ${array[$randomnum]})
 
-	randomnum=$(($(($RANDOM % $totalactions)) + 0))
-	echo $randomnum
-	action=$(echo ${actions[$randomnum]})
+		randomnum=$(($(($RANDOM % $totalactions)) + 0))
+		action=$(echo ${actions[$randomnum]})
 
-	echo "vmadm $action $uuid"
+		echo "vmadm $action $uuid"
+		if vmadm $action $uuid; then
+			break
+		fi
+	done
+
 	date
-	vmadm $action $uuid
 	sleep 30
 
 	svcs -Z $lb -xv manta/muppet
