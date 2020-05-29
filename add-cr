@@ -1,5 +1,0 @@
-#!/bin/bash
-
-repo=$(basename $(git remote get-url origin))
-
-git remote add cr johnlevon@cr.joyent.us:joyent/$repo
