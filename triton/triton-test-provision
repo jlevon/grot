@@ -1,0 +1,33 @@
+#!/bin/bash
+
+set -e
+
+# KVM
+triton create -ww -n kvm 616c7421-4b9a-49fe-989e-81eb19232b87 sample-2G
+# LX
+triton create -ww -n lx 7b5981c4-1889-11e7-b4c5-3f3bdfc9b88b sample-2G
+# smartos
+triton create -ww -n smartos fd2cc906-8938-11e3-beab-4359c665ac99 sample-2G
+
+ssh root@volcano <<EOF
+/opt/smartdc/bin/sdc-imgadm import -S https://images.joyent.com/ 68a837fe-1b9b-11e7-a66d-ab7961786c42
+/opt/smartdc/bin/sdc-imgadm import -S https://images.joyent.com/ 68a837fe-1b9b-11e7-a66d-ab7961786c42
+/opt/smartdc/bin/sdc-imgadm import -S https://images.joyent.com/ 3dbbdcca-2eab-11e8-b925-23bf77789921
+/opt/smartdc/bin/sdc-imgadm import -S https://images.joyent.com/ 63d6e664-3f1f-11e8-aef6-a3120cf8dd9d
+/opt/smartdc/bin/sdc-imgadm import -S https://images.joyent.com/ 7b5981c4-1889-11e7-b4c5-3f3bdfc9b88b
+/opt/smartdc/bin/sdc-imgadm import -S https://images.joyent.com/ 04179d8e-188a-11e7-af4a-1349e98cbd17
+/opt/smartdc/bin/sdc-imgadm import -S https://images.joyent.com/ 19aa3328-0025-11e7-a19a-c39077bfd4cf
+/opt/smartdc/bin/sdc-imgadm import -S https://images.joyent.com/ e74a9cd0-f2d0-11e6-8b69-b3acf2ef87f7
+/opt/smartdc/bin/sdc-imgadm import -S https://images.joyent.com/ 87a60dae-8cba-11e6-b7a3-77f05e44af1e
+EOF
+
+triton create -ww -n centos-6 68a837fe-1b9b-11e7-a66d-ab7961786c42 sample-2G
+triton create -ww -n centos-7 3dbbdcca-2eab-11e8-b925-23bf77789921 sample-2G
+triton create -ww -n debian-9 63d6e664-3f1f-11e8-aef6-a3120cf8dd9d sample-2G
+triton create -ww -n ubuntu-16.04 7b5981c4-1889-11e7-b4c5-3f3bdfc9b88b sample-2G
+triton create -ww -n ubuntu-14.04 04179d8e-188a-11e7-af4a-1349e98cbd17 sample-2G
+triton create -ww -n alpine-3 19aa3328-0025-11e7-a19a-c39077bfd4cf sample-2G
+triton create -ww -n debian-8 e74a9cd0-f2d0-11e6-8b69-b3acf2ef87f7 sample-2G
+triton create -ww -n debian-7 87a60dae-8cba-11e6-b7a3-77f05e44af1e  sample-2G
+
+triton-docker --tls run -d -p 80 --name webserver nginx

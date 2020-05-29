@@ -25,5 +25,5 @@ fi
 
 title=$(cat $tmp | head -1)
 
-echo $* | cat - ~/src/grot/codereview-mail.txt | sed "s,REVIEW_URL,$REVIEW_URL," | mutt -s "[PATCH] $title" -- $to
+echo $* | cat - ~/src/grot/illumos/codereview-mail.txt | sed "s,REVIEW_URL,$REVIEW_URL," | mutt -s "[PATCH] $title" -- $to
 rm $tmp

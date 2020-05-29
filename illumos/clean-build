@@ -2,7 +2,7 @@
 
 # Full clean build of a branch for smartos-live
 
-export PATH=$PATH:~/src/grot/
+export PATH=$PATH:~/src/grot/illumos/
 
 branch=$1
 shift

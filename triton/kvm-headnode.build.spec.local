@@ -1,6 +1,6 @@
 {
   "build-tgz": "false",
-  "answer-file": "/home/gk/src/grot/answers.kvm.json",
+  "answer-file": "/home/gk/src/grot/triton/answers.kvm.json",
   "ipxe": "false",
   "console": "ttya"
 }

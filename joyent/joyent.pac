@@ -11,6 +11,7 @@ function FindProxyForURL(url, host) {
     if (localHostOrDomainIs(host, "jira.joyent.us")) return "DIRECT";
     if (localHostOrDomainIs(host, "cr.joyent.us")) return "DIRECT";
     if (localHostOrDomainIs(host, "hound.joyent.us")) return "DIRECT";
+    if (localHostOrDomainIs(host, "pwchange.joyent.us")) return "DIRECT";
 
     // If the hostname matches, send through proxy
     if (dnsDomainIs(host, "joyent.us"))
