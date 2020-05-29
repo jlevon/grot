@@ -1,0 +1,10 @@
+#!/bin/bash
+
+read user
+email=$(hub api /users/$user | jq -r .email)
+
+[[ "$email" = "null" ]] && {
+	echo $user
+	exit 0
+}
+echo "$user <$email>"
