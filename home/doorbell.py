@@ -35,14 +35,17 @@ def notify():
     msg = MIMEText("At %s" % datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     msg["From"] = "doorbell <levon@movementarian.org>"
     msg["To"] = "John Levon <john.levon@gmail.com>"
+    msg["Cc"] = "John Levon <levon@movementarian.org>"
     msg["Subject"] = "Someone is ringing the doorbell"
 
     p = Popen(["/usr/sbin/sendmail", "-f", "levon@movementarian.org", "-t", "-oi"], stdin=PIPE)
     p.stdin.write(msg.as_string())
+    p.stdin.close()
     #p.communicate(msg.as_string())
     while True:
         #os.system('ssh jlevon@kent mpg123 Dropbox/personal/doorbell.mp3')
-	os.system('aplay -D plughw:1,0 doorbell.wav')
+	os.system('aplay -D plughw:1,0 police.wav')
+	#os.system('aplay police.wav')
         input_state = GPIO.input(18)
         if input_state:
             break
