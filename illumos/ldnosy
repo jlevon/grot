@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# use LD_ALTEXEC=ldnosy ...
+
+echo /usr/bin/ld $* >>/tmp/ldnosy
+exec /usr/bin/ld "$@"

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+d1=$1
+d2=$2
+
+(cd $d1 && find . -type f -exec file {} \;) | sort >d1.out
+(cd $d2 && find . -type f -exec file {} \;) | sort >d2.out
+
+diff -u d1.out d2.out >d.diff
