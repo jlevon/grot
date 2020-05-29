@@ -1,0 +1,14 @@
+#!/bin/bash
+
+files=""
+
+for i in $@; do
+
+	ps2pdf -sPAPERSIZE=a4 $i $i.pdf;
+	files="$files $i.pdf";
+done
+
+pdfunite $files output.pdf
+
+echo $(pwd)/output.pdf
+

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# usage: proto1/ proto2/
+
+old=$1
+new=$2
+
+dirs="platform/i86pc/kernel platform/i86xpv/kernel platform/i86hvm/kernel usr/kernel kernel"
+
+i=1
+for dir in $dirs; do
+	wsdiff -dtvVsr wsdiff.out.$i $old/$dir $new/$dir
+	i=$(( $i + 1 ))
+done

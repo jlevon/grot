@@ -1,0 +1,23 @@
+#!/usr/bin/env node
+
+// send a command to the haproxy socket
+
+var net = require('net');
+
+var path = '/tmp/haproxy';
+
+var cmd = process.argv.slice(2).join(' ') + '\n';
+console.log('running ' + cmd);
+
+var client = net.connect(path, function (err) {
+  if (err)
+    process.exit(1);
+  client.end(cmd);
+});
+
+client.on('data', function(data) {
+  client.end();
+
+  // the data comes as a buffer so make it a string
+  console.log(data.toString());
+});

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# convert a PI name into an illumos-joyent commit
+
+pi=$1
+
+rev=$(mget -q /Joyent_Dev/public/builds/platform/master-$pi/platform/gitstatus.json | \
+    json -a -c 'repo=="illumos-joyent"' rev )
+
+git -C ~/src/master/projects/illumos export $rev

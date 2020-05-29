@@ -1,7 +1,0 @@
-#!/bin/bash
-
-from=$1
-to=$2
-
-cp $1 projects/illumos/$2
-git -C projects/illumos/ add $2

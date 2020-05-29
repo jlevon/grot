@@ -1,0 +1,5 @@
+#!/bin/bash
+
+gerrit-change-id
+
+echo "git push -n origin HEAD:refs/for/master"

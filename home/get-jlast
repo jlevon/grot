@@ -1,0 +1,6 @@
+#!/bin/bash
+
+file=$(ssh jlevon@movementarian.org ls -1rt | grep -v Mail | tail -1)
+
+scp jlevon@movementarian.org:"${file// /\\ }" ~/
+xdg-open "$file"

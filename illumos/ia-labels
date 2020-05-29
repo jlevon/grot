@@ -1,0 +1,5 @@
+#!/bin/bash
+
+hub api --field name=integration-approval --field color='b2ffd7' --field description='This PR is ready to integrate' repos/joyent/$1/labels
+hub api --field name=force-integration-approval --field color=db577a --field description='Allow self-IA' repos/joyent/$1/labels
+

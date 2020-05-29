@@ -1,0 +1,2 @@
+vlc "$1" --sout "#chromecast" --audio-language eng --demux-filter=demux_chromecast  --sout-chromecast-ip=192.168.178.41
+#vlc "$1" --sout "#chromecast" --audio-language eng --demux-filter=demux_chromecast  --sout-chromecast-ip=192.168.86.28

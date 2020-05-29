@@ -1,0 +1,29 @@
+#!/bin/bash
+
+rev=$1
+shift
+
+[[ -n "$rev" ]] || rev=HEAD
+set -e
+
+to=levon@movementarian.org
+to=developer@lists.illumos.org
+
+set -x
+tmp=$(mktemp)
+git log --format=%B -1 $rev >$tmp
+cat $tmp
+id=$(cat $tmp | head -1 | awk '{print $1}')
+
+REVIEW_URL=http://cr.illumos.org/~webrev/jlevon/$id
+
+if [[ "$rev" = "HEAD" ]]; then
+	if grep "Change-Id:" "$tmp" >/dev/null; then
+		REVIEW_URL=$(gerrit-url)
+	fi
+fi
+
+title=$(cat $tmp | head -1)
+
+echo $* | cat - ~/src/grot/illumos/codereview-mail.txt | sed "s,REVIEW_URL,$REVIEW_URL," | mutt -s "[PATCH] $title" -- $to
+rm $tmp

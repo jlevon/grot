@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# recent uses of a particular binary
+
+binary=$(which $1)
+
+auditreduce -m AUE_EXECVE -o path=$binary | praudit -sl
