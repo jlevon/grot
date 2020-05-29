@@ -18,6 +18,7 @@ function docopy() {
 cd output/
 
 rm -f boot-.tgz
+rm -f images-.tgz
 docopy boot*.tgz file.platboot.tgz
 docopy $(readlink platform-latest.tgz) file.platform.tgz
 docopy images*.tgz file.platimages.tgz
