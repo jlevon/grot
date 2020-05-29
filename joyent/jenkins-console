@@ -6,6 +6,7 @@ JOB_ID=$2
 
 token=$(cat ~/.jenkinstoken)
 
-echo "Grabbing https://jenkins.joyent.us/job/${JOB_NAME}/${JOB_ID}/consoleText"
-curl -u "john.levon:$token" -O "https://jenkins.joyent.us/job/${JOB_NAME}/${JOB_ID}/consoleText"
+url="https:///jenkins.joyent.us/job/joyent-org/job/${JOB_NAME}/job/master/${JOB_ID}/consoleText"
+echo "Grabbing $url"
+curl -u "john.levon:$token" -O "$url"
 

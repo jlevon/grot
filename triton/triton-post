@@ -35,13 +35,13 @@ if [[ "$1" != "manta" ]] ; then
 	exit 0
 fi
 
-[[ -f ~/src/lab/emy-15.manta.json ]] || exit 1
+[[ -f ~/src/emy-15.manta.json ]] || exit 1
 
 # old way
 #ssh $host /usbkey/scripts/setup_manta_zone.sh
 ssh $host /opt/smartdc/bin/sdcadm post-setup manta --mantav2 --yes
 
-scp ~/src/lab/emy-15.manta.json $host:/zones/jlevon/
+scp ~/src/emy-15.manta.json $host:/zones/jlevon/
 manta0=$(ssh $host vmadm lookup alias=manta0)
 ssh $host ln -s /zones/$manta0/root/opt/smartdc/manta-deployment/networking /var/tmp/networking
 ssh $host "(cd /var/tmp/networking && . /root/.profile && ./manta-net.sh /zones/jlevon/emy-15.manta.json)"

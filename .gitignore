@@ -5,4 +5,5 @@ shm/shm1
 shm/shm2
 sweeper/sweeper
 dedouble
-sysconf/sysconf
+illumos/sysconf/sysconf
+illumos/acpi-spcr/acpi-spcr
