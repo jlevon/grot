@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# -t timeout is ignored, but this will paste the notification up
+
+notify-send -u critical "date +%Y-%m-%d:%H:%M:%S Somebody is ringing the doorbell"
