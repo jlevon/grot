@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# ctags, but sub-sorted such that "struct request" comes first, rather than
+# members with the same name.
+
+# we can't use "-f -", as that elides the TAG_FILE_SORTED preamble
+ctags -R -f tags.$$
+
+awk '
+BEGIN {
+	FS="\t"
+	entry=""
+	struct=""
+	buf=""
+}
+
+$1 != entry {
+	if (entry != "") {
+		printf("%s%s", struct, buf);
+	}
+	entry=$1;
+	struct="";
+	buf="";
+}
+
+/^.*"\ts/ {
+	struct=struct $0 "\n"
+	next
+}
+
+$1 == entry {
+	buf=buf $0 "\n"
+}
+
+END {
+	printf("%s%s", struct, buf);
+}' <tags.$$ >tags
+
+rm tags.$$
