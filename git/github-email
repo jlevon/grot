@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export PATH=/snap/bin/:$PATH
+
 read user
 email=$(hub api /users/$user | jq -r .email)
 
