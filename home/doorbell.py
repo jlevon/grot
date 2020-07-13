@@ -1,4 +1,4 @@
-#!/usr/bin/python -u
+#!/usr/bin/python3 -u
 
 #
 # Not going to win any awards this one, is it?
@@ -15,40 +15,93 @@
 from email.mime.text import MIMEText
 from subprocess import Popen, PIPE
 from datetime import datetime
-import subprocess
+
 import RPi.GPIO as GPIO
+import subprocess
+import alsaaudio
+import threading
 import signal
+import wave
 import time
 import os
 
-GPIO.setmode(GPIO.BCM)
-
-GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+samplefile = 'youkounkoun.wav'
 
 # in seconds
 settle_time = 0.1
 bounce_time = 1
 
+active = False
+
 def notify():
-    print('notifying at %s' % time.time())
+    subprocess.run(['/home/pi/notify-sent'])
 
-    msg = MIMEText("At %s" % datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    msg["From"] = "doorbell <levon@movementarian.org>"
-    msg["To"] = "John Levon <john.levon@gmail.com>"
-    msg["Cc"] = "John Levon <levon@movementarian.org>"
-    msg["Subject"] = "Someone is ringing the doorbell"
+    msg = MIMEText('At %s' % datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    msg['From'] = 'doorbell <levon@movementarian.org>'
+    msg['To'] = 'John Levon <john.levon@gmail.com>'
+    msg['Subject'] = 'Someone is ringing the doorbell'
 
-    p = Popen(["/usr/sbin/sendmail", "-f", "levon@movementarian.org", "-t", "-oi"], stdin=PIPE)
-    p.stdin.write(msg.as_string())
+    p = Popen(['/usr/sbin/sendmail', '-f', 'levon@movementarian.org', '-t', '-oi'], stdin=PIPE)
+    p.stdin.write(msg.as_string().encode())
     p.stdin.close()
-    #p.communicate(msg.as_string())
+
+def play():
+    global samplefile
+    global active
+
+    active = True
+
+    with wave.open(samplefile) as w:
+        rate = w.getframerate()
+
+    out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, device='plughw:1,0')
+    out.setrate(rate)
+    out.setperiodsize(160)
+
+    with open(samplefile, 'rb') as sample:
+        count = 0
+
+        # We always play at least one time round...
+        while active or count < 1:
+            data = sample.read(320)
+            if data:
+                out.write(data)
+            else:
+                print('looping after %d plays, active %s' % (count, active))
+                count += 1
+                sample.seek(0)
+
+        print('pausing audio')
+        out.pause()
+
+    print('stopped after %d plays' % count)
+
+def wait():
+    global active
+
     while True:
-        #os.system('ssh jlevon@kent mpg123 Dropbox/personal/doorbell.mp3')
-	os.system('aplay -D plughw:1,0 police.wav')
-	#os.system('aplay police.wav')
         input_state = GPIO.input(18)
         if input_state:
+            print('got input_state %s, active -> False' % input_state)
+            active = False
             break
+        time.sleep(0.2)
+
+def trigger():
+    print('triggering at %s' % time.time())
+
+    tn = threading.Thread(target=notify)
+    tn.start()
+
+    tp = threading.Thread(target=play)
+    tp.start()
+
+    tw = threading.Thread(target=wait)
+    tw.start()
+
+    tw.join()
+    tp.join()
+    tn.join()
 
 def settle():
     global settle_time
@@ -58,12 +111,13 @@ def settle():
     return not input_state
 
 def falling_edge(channel):
-
     input_state = GPIO.input(18)
     print('got falling edge, input_state %s' % input_state)
     if settle():
-        notify()
-          
+        trigger()
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.add_event_detect(18, GPIO.FALLING, callback=falling_edge, bouncetime=(bounce_time * 1000))
 
 print('started')
