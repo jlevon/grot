@@ -17,7 +17,6 @@ function FindProxyForURL(url, host) {
     if (dnsDomainIs(host, "joyent.us"))
         return "SOCKS5 localhost:9090";
 
-
     // DEFAULT RULE: All other traffic, use below proxies, in fail-over order.
     return "DIRECT";
 }
