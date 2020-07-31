@@ -1,0 +1,3 @@
+#!/bin/bash
+
+pgrep -fl 'ssh.*9090' >/dev/null || ssh -CfND 9090 jlevon@v

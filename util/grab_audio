@@ -1,0 +1,3 @@
+#!/bin/bash
+
+mplayer -nocorrect-pts -vc null -vo null -ao pcm:waveheader -benchmark "$1"

@@ -1,0 +1,26 @@
+#!/bin/bash
+
+#usage: dotag "The Birthday Party" "Junk Yard" tracklist.txt untitled*.flac
+
+artist=$1
+shift
+album=$1
+shift
+
+#echo "args $*"
+tlist=$1
+shift
+echo tlist is $tlist
+nr=1
+cat $tlist | while read track; do
+	echo "$1: $artist - $album - $nr $track"
+	#id3tag -a"$artist" -A"$album" -s"$track" -t$nr "$1"
+	metaflac --remove-all "$1"
+	metaflac --set-tag="ARTIST=$artist" --set-tag="ALBUM=$album" \
+	   --set-tag="TRACKNUMBER=$nr" --set-tag="TITLE=$track" "$1"
+	nr=$((nr + 1))
+	shift
+done
+
+[ -f cover.jpg ] && arg="--import-picture-from=cover.jpg"
+metaflac $arg *.flac

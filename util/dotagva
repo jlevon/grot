@@ -1,0 +1,26 @@
+#!/bin/bash
+
+#usage: dotagva "Some Compilation" tracklist.txt untitled*.flac
+
+# Harry Thumann,Sphinx (Alkino Edit)
+
+
+album=$1
+shift
+
+#echo "args $*"
+tlist=$1
+shift
+echo tlist is $tlist
+nr=1
+cat $tlist | while IFS=, read artist track; do
+	echo "$1: $album - $artist - $nr $track"
+	metaflac --remove-all "$1"
+	metaflac --set-tag="ALBUMARTIST=Various Artists" --set-tag="ALBUM=$album" \
+	   --set-tag="ARTIST=$artist" \
+	   --set-tag="TRACKNUMBER=$nr" --set-tag="TITLE=$track" "$1"
+	nr=$((nr + 1))
+	shift
+done
+
+metaflac --import-picture-from=cover.jpg *.flac
