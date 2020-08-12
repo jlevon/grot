@@ -1,0 +1,3 @@
+#!/bin/bash
+
+sudo pgrep -fl --nslist pid --ns $(docker inspect -f '{{.State.Pid}}' dev_smaug_0) "$@"
