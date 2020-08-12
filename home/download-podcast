@@ -4,21 +4,21 @@ url="$1"
 
 umask 0022
 
-readonly LOG_FILE="/var/tmp/download.log"
+readonly LOG_FILE="/var/log/jlevon/download.log"
 touch $LOG_FILE
 exec 1>>$LOG_FILE
 exec 2>&1
 
 #set -x
 
-if grep "$1" ~/.downloaded >/dev/null; then
+if grep "$1" ~/Dropbox/podcasts/downloaded >/dev/null; then
 	echo "$(date): skipping $1"
 	exit 0
 fi
 
 echo "$(date): downloading $1"
 
-echo "$1" >>~/.downloaded
+echo "$1" >>~/Dropbox/podcasts/downloaded
 
 cd /home/jlevon/Dropbox/podcasts/incoming/
 
