@@ -23,9 +23,10 @@ import threading
 import signal
 import wave
 import time
+import sys
 import os
 
-samplefile = 'youkounkoun.wav'
+samplefile = sys.argv[1]
 
 # in seconds
 settle_time = 0.1
