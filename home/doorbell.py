@@ -27,6 +27,7 @@ import sys
 import os
 
 samplefile = sys.argv[1]
+device='plughw:1,0'
 
 # in seconds
 settle_time = 0.1
@@ -51,26 +52,24 @@ def play():
     global active
 
     active = True
+    count = 0
 
-    with wave.open(samplefile) as w:
-        rate = w.getframerate()
+    with wave.open(samplefile) as f:
+        periodsize = f.getframerate() // 8
 
-    out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, device='plughw:1,0')
-    out.setrate(rate)
-    out.setperiodsize(160)
-
-    with open(samplefile, 'rb') as sample:
-        count = 0
+        out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, channels=f.getnchannels(),
+            rate=f.getframerate(), periodsize=periodsize, device=device)
 
         # We always play at least one time round...
         while active or count < 1:
-            data = sample.read(320)
+            data = f.readframes(periodsize)
+
             if data:
                 out.write(data)
             else:
                 print('looping after %d plays, active %s' % (count, active))
                 count += 1
-                sample.seek(0)
+                f.rewind()
 
         print('pausing audio')
         out.pause()
