@@ -55,10 +55,31 @@ def play():
     count = 0
 
     with wave.open(samplefile) as f:
-        periodsize = f.getframerate() // 8
 
-        out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, channels=f.getnchannels(),
-            rate=f.getframerate(), periodsize=periodsize, device=device)
+        format = None
+
+        # 8bit is unsigned in wav files
+        if f.getsampwidth() == 1:
+            format = alsaaudio.PCM_FORMAT_U8
+        # Otherwise we assume signed data, little endian
+        elif f.getsampwidth() == 2:
+            format = alsaaudio.PCM_FORMAT_S16_LE
+        elif f.getsampwidth() == 3:
+            format = alsaaudio.PCM_FORMAT_S24_3LE
+        elif f.getsampwidth() == 4:
+            format = alsaaudio.PCM_FORMAT_S32_LE
+        else:
+            raise ValueError('Unsupported format')
+
+        rate = f.getframerate()
+
+        periodsize = rate // 8
+
+        out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, device=device)
+        out.setchannels(f.getnchannels())
+        out.setrate(rate)
+        out.setformat(format)
+        out.setperiodsize(periodsize)
 
         # We always play at least one time round...
         while active or count < 1:
@@ -115,6 +136,13 @@ def falling_edge(channel):
     print('got falling edge, input_state %s' % input_state)
     if settle():
         trigger()
+
+with wave.open(samplefile) as f:
+    # things go horrible if the rate isn't 48000 for some reason
+    if f.getframerate() != 48000:
+        raise ValueError('file must be 48000 rate')
+    if f.getsampwidth() not in [ 1, 2, 3, 4]:
+            raise ValueError('Unsupported format')
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
