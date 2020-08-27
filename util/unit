@@ -6,8 +6,8 @@ import re
 def usage():
         print "unit 200 ms"
         print "time units: ns,us,ms,s,m,h,d"
-        print "byte units: bit,b,B,Kb,p,Kbit,Mb,Mbit,Gb,Gbit,Tb"
-        print "B = 512 bytes"
+        print "byte units: bit,B,Bl,Kb,p,Kbit,Mb,Mbit,Gb,Gbit,Tb"
+        print "Bl = 512 bytes"
         sys.exit(1)
 
 
@@ -29,9 +29,9 @@ times = {
 
 bytes = {
         "bit": ( 1024 * 8, "bits" ),
-        "b": ( 1024, "bytes" ),
+        "B": ( 1024, "bytes" ),
 	"P": ( 128, "64-bit pointers" ),
-        "B": ( 2, "blocks" ),
+        "Bl": ( 2, "blocks" ),
         "KB": ( 1, "kilobytes" ),
         "p": ( 0.25, "(4K) pages" ),
         "Kb": ( 8192 / 1000.0, "kilobits" ),
