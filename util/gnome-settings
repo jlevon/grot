@@ -1,0 +1,13 @@
+#!/bin/bash
+
+
+for schema in $(gsettings list-schemas | sort); do
+    for key in $(gsettings list-keys $schema | sort); do
+        type="$(gsettings range $schema $key | tr "\n" " ")"
+        default="$(XDG_CONFIG_HOME=/tmp/ gsettings get $schema $key | tr "\n" " ")"
+        value="$(gsettings get $schema $key | tr "\n" " ")"
+	if [ "$default" != "$value" ]; then
+		echo "gsettings set $schema $key $value # was $default"
+	fi
+    done
+done
