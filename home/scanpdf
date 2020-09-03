@@ -2,5 +2,6 @@
 
 set -e
 
-scanimage --resolution 300 --format=tiff | convert tiff:- $1
+scanimage --resolution 600 --format=tiff | convert tiff:- a.pdf
+shrinkpdf a.pdf $1 300
 evince $1
