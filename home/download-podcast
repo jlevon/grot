@@ -11,15 +11,15 @@ exec 2>&1
 
 #set -x
 
-if grep "$1" ~/Dropbox/podcasts/downloaded >/dev/null; then
+if grep "$1" ~/shared/podcasts/downloaded >/dev/null; then
 	echo "$(date): skipping $1"
 	exit 0
 fi
 
 echo "$(date): downloading $1"
 
-echo "$1" >>~/Dropbox/podcasts/downloaded
+echo "$1" >>~/shared/podcasts/downloaded
 
-cd /home/jlevon/Dropbox/podcasts/incoming/
+cd /home/jlevon/shared/podcasts/incoming/
 
 curl -RksSLJO "$1" 
