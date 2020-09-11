@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# skip all EXPORT_SYMBOL*() tags
+
+ctags-exuberant -R 2>/dev/null || ctags -R
+mv tags t.$$
+
+# VMALLOC_START	arch/s390/kernel/setup.c	/^EXPORT_SYMBOL(VMALLOC_START);$/;"	v
+
+grep -v '/^EXPORT_SYMBOL.*/' t.$$ >tags
+rm t.$$
