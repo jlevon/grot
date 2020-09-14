@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cp -r /media/jlevon/9016-4EF8/DCIM/104_PANA/* .
