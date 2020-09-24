@@ -1,0 +1,6 @@
+#!/bin/bash
+
+git log --follow --pretty=%H -G "$@" . | while read rev; do
+	git log -1 --pretty=oneline $rev
+	git export $rev | grep -C3 "$@"
+done
