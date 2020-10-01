@@ -1,11 +1,40 @@
 #!/bin/bash
 
 # skip all EXPORT_SYMBOL*() tags
+# VMALLOC_START	arch/s390/kernel/setup.c	/^EXPORT_SYMBOL(VMALLOC_START);$/;"	v
 
+# we can't use "-f -", as that elides the TAG_FILE_SORTED preamble
 ctags-exuberant -R 2>/dev/null || ctags -R
 mv tags t.$$
 
-# VMALLOC_START	arch/s390/kernel/setup.c	/^EXPORT_SYMBOL(VMALLOC_START);$/;"	v
+# https://movementarian.org/blog/posts/ctag-ordering/
 
-grep -v '/^EXPORT_SYMBOL.*/' t.$$ >tags
-rm t.$$
+grep -v '/^EXPORT_SYMBOL.*/' t.$$ | awk '
+BEGIN {
+	FS="\t"
+	entry=""
+	struct=""
+	buf=""
+}
+
+$1 != entry {
+	if (entry != "") {
+		printf("%s%s", struct, buf);
+	}
+	entry=$1;
+	struct="";
+	buf="";
+}
+
+/^.*"\ts/ {
+	struct=struct $0 "\n"
+	next
+}
+
+$1 == entry {
+	buf=buf $0 "\n"
+}
+
+END {
+	printf("%s%s", struct, buf);
+}' >tags
