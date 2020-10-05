@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# openconnect sucks at cleaning up
+
+echo "nameserver 1.1.1.1" >/tmp/resolv.conf
+sudo cp /tmp/resolv.conf /etc/resolv.conf
