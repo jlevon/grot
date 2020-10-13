@@ -13,6 +13,9 @@ function FindProxyForURL(url, host) {
     if (dnsDomainIs(host, "10.53.99.199"))
         return "SOCKS5 localhost:9090";
 
+    if (dnsDomainIs(host, "sourcegraph.canaveral-corp.us-west-2.aws"))
+        return "SOCKS5 localhost:9090";
+
     // DEFAULT RULE: All other traffic, use below proxies, in fail-over order.
     return "DIRECT";
 }
