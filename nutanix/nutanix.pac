@@ -7,13 +7,11 @@ function FindProxyForURL(url, host) {
  //   if (localHostOrDomainIs(host, "jenkins.nutanix.com")) return "DIRECT";
 
     // If the hostname matches, send through proxy
-    if (dnsDomainIs(host, "nutanix.com"))
-        return "SOCKS5 localhost:9090";
-
-    if (dnsDomainIs(host, "10.53.99.199"))
-        return "SOCKS5 localhost:9090";
-
-    if (dnsDomainIs(host, "sourcegraph.canaveral-corp.us-west-2.aws"))
+    if (
+        dnsDomainIs(host, "nutanix.com") ||
+        dnsDomainIs(host, "10.53.99.199") ||
+        dnsDomainIs(host, "sourcegraph.canaveral-corp.us-west-2.aws") ||
+        dnsDomainIs(host, "10.41.24.94"))
         return "SOCKS5 localhost:9090";
 
     // DEFAULT RULE: All other traffic, use below proxies, in fail-over order.
