@@ -1,0 +1,5 @@
+#!/bin/bash
+
+teefile=$(echo $* | sed 's+ +-+g').out
+
+$* 2>&1 | tee $teefile

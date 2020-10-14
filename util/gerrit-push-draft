@@ -1,0 +1,16 @@
+#!/bin/bash
+
+nr_csets=$(git log --oneline origin/master..HEAD | wc -l)
+
+if [[ $nr_csets != 1 ]]; then
+	echo "WARNING: more than one cset since master found"
+fi
+
+gerrit-change-id
+
+git push -n origin HEAD:refs/drafts/master
+
+echo "  ---------------------------------------"
+echo "  git push origin HEAD:refs/drafts/master"
+echo "  ---------------------------------------"
+
