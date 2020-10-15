@@ -1,0 +1,20 @@
+#!/bin/bash
+
+MAILDIR=$HOME/Mail/
+FOLDERS=
+
+cd $MAILDIR
+for i in *; do
+	[[ "$i" = "trash" ]] && continue
+	[[ -d "$i" ]] || continue
+
+        ls $i/cur/*.eml >/dev/null 2>&1 && {
+                FOLDERS="$FOLDERS$i "
+        }
+done
+
+if test -n "$FOLDERS"; then
+        echo "New mail in $FOLDERS"
+fi
+
+exit 0
