@@ -1,8 +1,12 @@
 #!/bin/bash
 
-# squash current diff, staged, or current commit into previous commit
+# squash staged changes into previous commit
 
-git add -u
+if [[ "$(git diff --cached | wc -l)" = 0 ]]; then
+    echo "nothing staged?"
+    exit 1
+fi
+
 git commit -m tmp.$$
 
 rev=$(git rev-parse HEAD^)
