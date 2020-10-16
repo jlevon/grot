@@ -1,16 +1,25 @@
 #!/bin/bash
 
-nr_csets=$(git log --oneline origin/master..HEAD | wc -l)
+parent=$(git parent-branch)
+nr_csets=$(git log --oneline $parent..HEAD | wc -l)
+
+topic=$1
 
 if [[ $nr_csets != 1 ]]; then
-	echo "WARNING: more than one cset since master found"
+	echo "WARNING: more than one cset since $parent found"
 fi
 
 gerrit-change-id
 
-git push -n origin HEAD:refs/drafts/master
+args=""
+if [[ -n "$topic" ]]; then
+    args="-o topic=$topic"
+fi
 
-echo "  ---------------------------------------"
-echo "  git push origin HEAD:refs/drafts/master"
-echo "  ---------------------------------------"
+parentbranch=$(basename $parent)
+git push -n $args origin HEAD:refs/drafts/$parentbranch
+
+echo "  --------------"
+echo "  git push origin $args HEAD:refs/drafts/$parentbranch"
+echo "  --------------"
 
