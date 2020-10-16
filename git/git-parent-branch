@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#
+# This is gross, and there's probably better ways, but we're looking for the
+# first indication of a remote branch such as "origin/master", "origin/dev/foo",
+# etc.
+#
+
+remote=$(git remote)
+git log --oneline --decorate | grep " ($remote" | sed "s,^.* ($remote\([A-Za-z0-9/_-]*\).*$,$remote\1," | head -n1
