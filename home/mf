@@ -1,16 +1,17 @@
-#!/bin/bash
+#!/bin/sh
 
 MAILDIR=$HOME/Mail/
 FOLDERS=
-
-cd $MAILDIR
-for i in *; do
-	[[ "$i" = "trash" ]] && continue
-	[[ -d "$i" ]] || continue
-
-        ls $i/cur/*.eml >/dev/null 2>&1 && {
+for i in `ls $MAILDIR`; do
+        if test "$i" = "trash"; then
+                continue;
+        fi
+        if test "$i" = "linux"; then
+                continue;
+        fi
+        if test -n "`ls $MAILDIR/$i/new/ 2>/dev/null`"; then
                 FOLDERS="$FOLDERS$i "
-        }
+        fi
 done
 
 if test -n "$FOLDERS"; then

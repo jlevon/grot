@@ -17,7 +17,7 @@ for g in $GENRES; do
 	echo curl -c cookies $HEADERS -H "Referer: https://www.piccadillyrecords.com/" "https://www.piccadillyrecords.com/counter/catalogue.php?&genre=$g"
 	curl -c cookies $HEADERS -H "Referer: https://www.piccadillyrecords.com/" \
 	"https://www.piccadillyrecords.com/counter/catalogue.php?&genre=$g" >/dev/null
-	#cat cookies
+	cat cookies
 	curl -b cookies $HEADERS -H "Referer: https://www.piccadillyrecords.com/counter/catalogue.php?&genre=%g" \
 	https://www.piccadillyrecords.com/counter/magicmix.php >$g.m3u
 done
