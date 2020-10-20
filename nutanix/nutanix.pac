@@ -14,6 +14,7 @@ function FindProxyForURL(url, host) {
         dnsDomainIs(host, "sourcegraph.canaveral-corp.us-west-2.aws") ||
         dnsDomainIs(host, "10.49.47.176") ||
         dnsDomainIs(host, "10.41.24.115") ||
+	dnsDomainIs(host, "10.37.191.151") ||
 
         dnsDomainIs(host, "10.41.24.94"))
         return "SOCKS5 localhost:9090";
