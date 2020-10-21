@@ -4,7 +4,8 @@
 function FindProxyForURL(url, host) {
 
     // these are reachable
-    if (localHostOrDomainIs(host, "portal.nutanix.com"))
+    if (localHostOrDomainIs(host, "portal.nutanix.com") ||
+       localHostOrDomainIs(host, "www.nutanix.com"))
 	return "DIRECT";
 
     // If the hostname matches, send through proxy
@@ -15,6 +16,7 @@ function FindProxyForURL(url, host) {
         dnsDomainIs(host, "10.49.47.176") ||
         dnsDomainIs(host, "10.41.24.115") ||
 	dnsDomainIs(host, "10.37.191.151") ||
+        dnsDomainIs(host, "10.41.24.97") ||
 
         dnsDomainIs(host, "10.41.24.94"))
         return "SOCKS5 localhost:9090";
