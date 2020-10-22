@@ -2,6 +2,6 @@
 
 tit="$*"
 
-[[ -n "$tit" ]] || tit=$(pwd)
+[[ -n "$tit" ]] || tit=$(basename $(pwd))
 
 echo -en "\033]0;$tit\a"
