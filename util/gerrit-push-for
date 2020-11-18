@@ -1,9 +1,8 @@
 #!/bin/bash
 
-parent=$(git parent-branch)
-nr_commits=$(git log --oneline $parent..HEAD | wc -l)
-
 topic=$1
+parent=${2:-$(git parent-branch)}
+nr_commits=$(git log --oneline $parent..HEAD | wc -l)
 
 if [[ $nr_commits != 1 ]]; then
 	echo "WARNING: more than one commit since $parent found"
