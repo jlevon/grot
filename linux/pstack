@@ -1,3 +1,11 @@
 #!/bin/bash
 
+# Linux's pstack is possibly the stupidest thing ever.
+
+if [ -f "$1" ]; then
+    bin=$(file $1 | sed "s/.*from '//;s/', real.*//")
+
+    exec gdb -batch -ex "thread apply all bt" $bin $1
+fi
+
 gdb -batch -ex "thread apply all bt" -p $1
