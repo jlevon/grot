@@ -10,7 +10,7 @@ int main()
 	int ret;
 
 	ret = sscanf("18446744073709551616", "%"SCNu64, &out);
-	printf("ret:%d val:%" PRIu64, ret, out);
+	printf("ret:%d val:%" PRIu64 "\n", ret, out);
 	ret = sscanf("184467440737095516167777", "%"SCNu64, &out);
-	printf("ret:%d val:%" PRIu64, ret, out);
+	printf("ret:%d val:%" PRIu64 "\n", ret, out);
 }
