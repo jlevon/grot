@@ -18,6 +18,8 @@ function FindProxyForURL(url, host) {
         dnsDomainIs(host, "10.41.24.115") ||
 	dnsDomainIs(host, "10.37.191.151") ||
         dnsDomainIs(host, "10.41.24.97") ||
+        dnsDomainIs(host, "10.41.24.97") ||
+	dnsDomainIs(host, "10.49.46.190") ||
 
         dnsDomainIs(host, "10.41.24.94"))
         return "SOCKS5 localhost:9090";
