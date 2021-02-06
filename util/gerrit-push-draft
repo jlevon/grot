@@ -1,20 +1,24 @@
 #!/bin/bash
 
-parent=$(git parent-branch)
+topic=$1
+parent=${2:-$(git parent-branch)}
 nr_commits=$(git log --oneline $parent..HEAD | wc -l)
 
-topic=$1
-
 if [[ $nr_commits != 1 ]]; then
-	echo "WARNING: $nr_commits commits since $parent found"
+	echo "WARNING: more than one commit since $parent found"
+else
+    gerrit-change-id
 fi
-
-gerrit-change-id
 
 args=""
 if [[ -n "$topic" ]]; then
     args="-o topic=$topic"
 fi
+
+echo "Commits:"
+echo "  --------------"
+git log --oneline $parent..HEAD
+echo "  --------------"
 
 parentbranch=${parent#*/}
 git push -n $args origin HEAD:refs/drafts/$parentbranch

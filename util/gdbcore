@@ -1,0 +1,5 @@
+#!/bin/bash
+
+exec=$(file $1 | sed "s+.*execfn: '++;s+'.*++")
+
+gdb $exec $1

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+for pid in $*; do
+	tail --pid=$pid -f /dev/null &
+done
+
+wait

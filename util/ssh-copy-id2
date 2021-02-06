@@ -1,0 +1,4 @@
+#!/bin/bash
+
+ssh-copy-id $1
+ssh $1 "cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys2"

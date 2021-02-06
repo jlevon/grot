@@ -1,29 +1,26 @@
 #!/bin/bash
 
-topic=$1
-parent=${2:-$(git parent-branch)}
+parent=$(git parent-branch)
 nr_commits=$(git log --oneline $parent..HEAD | wc -l)
 
 if [[ $nr_commits != 1 ]]; then
 	echo "WARNING: more than one commit since $parent found"
-else
-    gerrit-change-id
 fi
 
 args=""
-if [[ -n "$topic" ]]; then
-    args="-o topic=$topic"
-fi
+for r in $*; do
+    args="$args -a $r"
+done
 
 echo "Commits:"
 echo "  --------------"
 git log --oneline $parent..HEAD
 echo "  --------------"
 
+# note we can't use git push due to "no new changes", sigh.
 parentbranch=${parent#*/}
-git push -n $args origin HEAD:refs/for/$parentbranch
 
-echo "  --------------"
-echo "  git push origin $args HEAD:refs/for/$parentbranch"
-echo "  --------------"
+for commit in $(git log --pretty=%H $parent..HEAD); do
+    echo ssh -p 29418 gerrit.eng.nutanix.com "gerrit set-reviewers $args $commit"
+done
 

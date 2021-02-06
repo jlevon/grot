@@ -15,10 +15,10 @@ for i in *; do
 	fi
 done
 
-for i in MSR*; do
-	nr=$(echo $i | sed 's+MSR++;s+_Podcast.mp3++')
-	id3v2 -a "Milk Street Radio" -A "Milk Street Radio" -g 186 -t "$nr" $i
-done
+#for i in MSR*; do
+#	nr=$(echo $i | sed 's+MSR++;s+_Podcast.mp3++')
+#	id3v2 -a "Milk Street Radio" -A "Milk Street Radio" -g 186 -t "$nr" $i
+#done
 
 for i in *.mp3; do
 	if ! id3v2 -l "$i" | grep '^TCON.*186'>/dev/null; then

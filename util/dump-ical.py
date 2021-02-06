@@ -53,4 +53,7 @@ if __name__ == "__main__":
         sys.stderr.write("Usage: %s <filename.ics>\n" % sys.argv[0])
         sys.exit(2)
     inv = get_invitation_from_path(sys.argv[1])
-    pretty_print_invitation(inv)
+    try:
+      pretty_print_invitation(inv)
+    except:
+      inv.prettyPrint()
