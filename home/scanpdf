@@ -1,7 +1,11 @@
 #!/bin/bash
 
 set -e
+set -x
 
-scanimage --resolution 600 --format=tiff | convert tiff:- a.pdf
+# escl:http://192.168.86.62:8080
+dev="hpaio:/net/ENVY_4500_series?ip=192.168.86.62"
+scanimage --device "$dev" --mode Color --progress --resolution 300 --format=tiff >a.tiff
+convert tiff:a.tiff a.pdf
 shrinkpdf a.pdf $1 300
 evince $1
