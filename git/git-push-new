@@ -1,0 +1,8 @@
+#!/bin/bash
+
+ git push -n -u origin HEAD
+
+if [ $? = 0 ]; then
+    echo "if OK:"
+    echo "  git push -u origin HEAD"
+fi

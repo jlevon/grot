@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# perl instead of sed, so we don't add newlines to files
+
+git ls-tree -r HEAD | cut -f2 | xargs perl -pi -e "$1"

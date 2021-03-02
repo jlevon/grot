@@ -6,5 +6,9 @@
 # etc.
 #
 
-remote=$(git remote)
+#
+# Presuming the first remote is the right one sucks, but there is literally no
+# other meaningful way to do this.
+#
+remote=$(git remote | head -1)
 git log --oneline --decorate | grep " ($remote" | sed "s,^.* ($remote\([A-Za-z0-9./_-]*\).*$,$remote\1," | head -n1

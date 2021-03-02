@@ -7,6 +7,6 @@ test -n $dir || dir=.
 echo $(realpath $dir)
 echo ------------------------------------------------
 
-git -C $dir log --pretty=oneline --decorate -2
+git -C $dir log --pretty=oneline --decorate
 echo ------------------------------------------------
 git -C $dir status

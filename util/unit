@@ -40,8 +40,8 @@ bytes = {
         "MB": ( 1/1024.0, "megabytes" ),
         "GB": ( 1/(1024.0 * 1024.0), "gigabytes" ),
         "TB": ( 1/(1024.0 * 1024.0 * 1024.0), "terabytes" ),
-        "s (1Gbit link)": ( 8192 / (1000.0 * 1000.0 * 1000.0), "seconds over 1Gbit link" ),
-        "s (10Gbit link)": ( 8192 / (10 * 1000.0 * 1000.0 * 1000.0), "seconds over 10Gbit link" ),
+        "s1gblink": ( 8192 / (1000.0 * 1000.0 * 1000.0), "seconds over 1Gbit link" ),
+        "s10gblink": ( 8192 / (10 * 1000.0 * 1000.0 * 1000.0), "seconds over 10Gbit link" ),
 }
 
 if unit in times.keys():
