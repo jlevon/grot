@@ -2,4 +2,4 @@
 
 teefile=$(echo $* | sed 's+ +-+g').out
 
-$* 2>&1 | tee $teefile
+nohup "$@" 2>&1 | tee $teefile
