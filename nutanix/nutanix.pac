@@ -29,7 +29,9 @@ function FindProxyForURL(url, host) {
 	shExpMatch(host, "10.41.24.*") ||
 	shExpMatch(host, "10.53.97.*") ||
 	shExpMatch(host, "10.53.98.*") ||
-	shExpMatch(host, "10.41.24.*"))
+	shExpMatch(host, "10.41.24.*") ||
+	shExpMatch(host, "10.53.110.*") ||
+	shExpMatch(host, "10.53.98.*"))
         return "SOCKS5 localhost:9090";
 
     // DEFAULT RULE: All other traffic, use below proxies, in fail-over order.
