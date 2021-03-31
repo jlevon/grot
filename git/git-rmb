@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# remove a branch and its worktree if any
+
+branch=$1
+
+git branch | grep -q "^  $branch$" || {
+    echo "no such branch $branch" >&2
+    exit 1
+}
+
+set -e
+set -x
+
+rm -rf ../$branch/
+git worktree prune
+git branch -D $branch

@@ -7,3 +7,4 @@ sweeper/sweeper
 dedouble
 illumos/sysconf/sysconf
 illumos/acpi-spcr/acpi-spcr
+tests/memeater

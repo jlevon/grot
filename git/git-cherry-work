@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# e.g. git cherry-work b9bcbc2 irq-disable-void
+#
+# creates a worktree called e.g. 1.name, ready for pushing as a (dependent) PR
+#
+# for the first one, start off at master
+
+commit=$1
+name=$2
+
+id=$(git log --oneline origin/master..$commit | wc -l)
+cur=$(basename $(pwd))
+
+git worktree add ../$id.$name
+cd ../$id.$name
+git cherry-pick $commit
+echo "cd ../$id.$name"
+echo "gh pr create --draft --base $cur"
