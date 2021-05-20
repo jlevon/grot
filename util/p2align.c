@@ -12,5 +12,6 @@ main(int argc, char *argv[])
 	unsigned long long x, a;
 	x = strtoull(argv[1], NULL, 0);
 	a = strtoull(argv[2], NULL, 0);
-	printf("ROUND_UP(%llu, %llu) -> %llu\n", x, a, ROUND_UP(x, a));
+	printf("ROUND_DOWN(%#llx, %#llx) -> %#llx\n", x, a, ROUND_DOWN(x, a));
+	printf("ROUND_UP(%#llx, %#llx) -> %#llx\n", x, a, ROUND_UP(x, a));
 }
