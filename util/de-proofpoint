@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# incoming:
+# https://urldefense.proofpoint.com/v2/url?u=https-3A__github.com_nutanix_libvfio-2Duser_pull_485-23pullrequestreview-2D665279277&d=DwICaQ&c=s883GpUCOChKOHiocYtGcg&r=v7SNLJqx7b9Vfc7ZO82Wg4nnZ8O5XkACFQ30bVKxotI&m=JmDjOscgAkm5IHRrPoBDOZ8qxWvt-bAbr8ZnVP6hyeY&s=C0YJepSldA0SyY8d
+
+#cat - >/tmp/pp.$$
+cat - | perl -MMIME::QuotedPrint -0777 -nle 'print decode_qp($_)' | sed '/urldefense.proofpoint.com/{s+\&d=.*++;s+https://urldefense.proofpoint.com/v2/url?u=++;s+_+/+g;s+-3A+:+g;s+-2D+-+g;s+-23+#+g;}'
