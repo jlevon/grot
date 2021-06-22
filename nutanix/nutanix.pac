@@ -6,6 +6,7 @@ function FindProxyForURL(url, host) {
     // these are reachable
     if (localHostOrDomainIs(host, "portal.nutanix.com") ||
         localHostOrDomainIs(host, "next.nutanix.com") ||
+        localHostOrDomainIs(host, "jira.nutanix.com") ||
         localHostOrDomainIs(host, "www.nutanix.com"))
 	return "DIRECT";
 
