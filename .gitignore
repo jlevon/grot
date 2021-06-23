@@ -9,3 +9,4 @@ illumos/sysconf/sysconf
 illumos/acpi-spcr/acpi-spcr
 tests/memeater
 util/p2align
+tests/sscanf-overflow
