@@ -4,6 +4,11 @@ topic=$1
 parent=${2:-$(git parent-branch)}
 nr_commits=$(git log --oneline $parent..HEAD | wc -l)
 
+remote=origin
+if git remote get-url gerrit 2>/dev/null; then
+	remote=gerrit
+fi
+
 if [[ $nr_commits != 1 ]]; then
 	echo "WARNING: more than one commit since $parent found"
 else
@@ -21,9 +26,9 @@ git log --oneline $parent..HEAD
 echo "  --------------"
 
 parentbranch=${parent#*/}
-git push -n $args origin HEAD:refs/for/$parentbranch
+git push -n $args $remote HEAD:refs/for/$parentbranch
 
 echo "  --------------"
-echo "  git push origin $args HEAD:refs/for/$parentbranch"
+echo "  git push $remote $args HEAD:refs/for/$parentbranch"
 echo "  --------------"
 

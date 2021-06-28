@@ -26,9 +26,9 @@ git log --oneline $parent..HEAD
 echo "  --------------"
 
 parentbranch=${parent#*/}
-git push -n $args $remote HEAD:refs/drafts/$parentbranch
+git push -n $args $remote HEAD:refs/for/$parentbranch%wip
 
 echo "  --------------"
-echo "  git push $remote $args HEAD:refs/drafts/$parentbranch"
+echo "  git push $remote $args HEAD:refs/for/$parentbranch%wip"
 echo "  --------------"
 
