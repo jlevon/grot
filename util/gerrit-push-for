@@ -1,13 +1,17 @@
 #!/bin/bash
 
 topic=$1
-parent=${2:-$(git parent-branch)}
-nr_commits=$(git log --oneline $parent..HEAD | wc -l)
 
 remote=origin
 if git remote get-url gerrit 2>/dev/null; then
 	remote=gerrit
+	parent=gerrit/master
+	git fetch gerrit
+else
+	parent=${2:-$(git parent-branch $remote)}
 fi
+
+nr_commits=$(git log --oneline $parent..HEAD | wc -l)
 
 if [[ $nr_commits != 1 ]]; then
 	echo "WARNING: more than one commit since $parent found"
