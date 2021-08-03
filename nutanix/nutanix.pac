@@ -13,6 +13,7 @@ function FindProxyForURL(url, host) {
     if (
         dnsDomainIs(host, "nutanix.com") ||
         dnsDomainIs(host, "canaveral-corp.us-west-2.aws") ||
+        dnsDomainIs(host, "ntnxdpro.com") ||
 	dnsDomainIs(host, "10.37.191.151") ||
         dnsDomainIs(host, "10.41.24.97") ||
         dnsDomainIs(host, "10.41.24.97") ||
@@ -30,6 +31,7 @@ function FindProxyForURL(url, host) {
 	shExpMatch(host, "10.41.24.*") ||
 	shExpMatch(host, "10.53.97.*") ||
 	shExpMatch(host, "10.53.98.*") ||
+	shExpMatch(host, "10.53.99.*") ||
 	shExpMatch(host, "10.41.24.*") ||
 	shExpMatch(host, "10.53.110.*") ||
 	shExpMatch(host, "10.53.98.*"))
