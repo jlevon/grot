@@ -41,6 +41,7 @@ bytes = {
         "Bl": ( 2, "blocks" ),
         "KB": ( 1, "kilobytes" ),
         "p": ( 0.25, "(4K) pages" ),
+        "Lp": ( 1/2048.0, "(2MB) large pages" ),
         "Kb": ( 8192 / 1000.0, "kilobits" ),
         "Mb": ( 8192 / (1000.0 * 1000.0), "megabits" ),
         "Gb": ( 8192 / (1000.0 * 1000.0 * 1000.0), "gigabits" ),
