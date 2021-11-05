@@ -2,6 +2,7 @@
 
 set -o pipefail
 
-teefile=$(echo $* | sed 's+[ /]+-+g').out
+set -x
+teefile=$(echo $* | sed 's+[. /-]+_+g').out
 
 nohup "$@" 2>&1 | tee $teefile

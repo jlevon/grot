@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# reset files to branch version
+
+branch=$1
+shift
+
+for i in "$@"; do
+	git checkout $branch -- "$i"
+	git add "$i"
+done
