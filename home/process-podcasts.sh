@@ -21,6 +21,9 @@ done
 #done
 
 for i in *.mp3; do
+	if ! id3v2 -l "$i" | grep '^TIT2'>/dev/null; then
+		id3v2 -t "${i%\.mp3}" "$i"
+	fi
 	if ! id3v2 -l "$i" | grep '^TCON.*186'>/dev/null; then
 		id3v2 -g 186 "$i"
 	fi

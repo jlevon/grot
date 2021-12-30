@@ -3,7 +3,7 @@
 mv ~/untitled\ #1.mp3 ~/p
 cd ~/p
 easytag .
-file="*.mp3"
+file="$(ls *.mp3)"
 cp *.mp3 ~/shared/mp3/tunes/
 mv *.mp3 ~/shared/mp3/2021.12/
 
