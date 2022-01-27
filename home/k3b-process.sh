@@ -52,6 +52,7 @@ for i in ${!urls[@]}; do
 	echo "#EXTINF:$length,$artist - $title" >>$m3u
 	newfile="$track.$artist.$title.mp3"
 	mv "$path" "$dir/$newfile" 2>/dev/null
+	id3v2 -A "jlevon $date" $dir/$newfile
 	uri="$(echo -n "$newfile" | jq -sRr @uri)"
 	echo "https://movementarian.org/$date/$uri" >>$m3u
 
