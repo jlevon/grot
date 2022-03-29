@@ -1,3 +1,5 @@
 #!/bin/bash
 
-git fetch origin master:master
+branch=${1:-master}
+
+git fetch origin $branch:$branch
