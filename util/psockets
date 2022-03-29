@@ -1,0 +1,17 @@
+#!/bin/bash
+
+for pid in $*; do
+    echo "------ pid $pid" ---------------
+    for i in /proc/$pid/fd/*; do
+        fd=$(basename $i)
+        link=$(readlink $i)
+
+        if ! echo "$link" | grep socket: >/dev/null 2>&1 ; then
+            continue;
+        fi
+
+        sid=$(echo $link | sed 's+.*socket:\[\([0-9]*\)]+\1+')
+
+        echo $fd:$link: $(ss -p -f unix | awk "\$8 == \"$sid\" { print \$9; }")
+    done
+done
