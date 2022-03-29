@@ -2,8 +2,11 @@
 
 # pgrep + pstree in a useful form
 
-pgrep $1 >/dev/null || {
+pgrep -f $1 >/dev/null || {
         echo "no procs matching $1 found" >&2
         exit 1
 }
-pstree -pals $(pgrep $1)
+
+for pid in $(pgrep -f $1); do
+    pstree -pals $pid
+done
