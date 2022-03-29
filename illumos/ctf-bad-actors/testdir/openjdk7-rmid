@@ -1,5 +1,0 @@
-#! /usr/bin/bash
-PATH=/opt/local/java/openjdk7/bin:${PATH}; export PATH
-JAVA_HOME=/opt/local/java/openjdk7; export JAVA_HOME
-JVM_HOME=/opt/local/java/openjdk7; export JVM_HOME
-/opt/local/java/openjdk7/bin/rmid "$@"
