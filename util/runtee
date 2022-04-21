@@ -9,5 +9,5 @@ teefile=$(echo $* | sed 's+[. /-]+_+g').out
 tail -f $teefile &
 tpid=$!
 
+trap "kill $tpid" EXIT
 nohup "$@" >$teefile
-kill $tpid
