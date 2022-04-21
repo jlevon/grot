@@ -1,8 +1,13 @@
 #!/bin/bash
 
-set -o pipefail
+# output to both a named file and stdout, but don't exit on hup.
+# Is there a better way?
 
-set -x
 teefile=$(echo $* | sed 's+[. /-]+_+g').out
 
-nohup "$@" 2>&1 | tee $teefile
+>$teefile
+tail -f $teefile &
+tpid=$!
+
+nohup "$@" >$teefile
+kill $tpid
