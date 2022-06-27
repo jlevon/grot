@@ -1,0 +1,6 @@
+#!/bin/bash
+
+func=$1
+bin=$2
+
+gdb -ex "disassemble $func" -ex quit  $bin
