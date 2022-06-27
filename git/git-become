@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Take current HEAD, and force become another branch (for moving away from
+# detached heads!)
+
+branch=$1
+
+git branch -f $branch HEAD
+git checkout $branch
+git branch
+
