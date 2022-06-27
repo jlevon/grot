@@ -3,6 +3,8 @@
 count=$1
 shift
 
+echo "- ${@} -------------"
 for (( i=1; i<=$count; i++ )); do
 	${@}
 done
+echo "--------------"
