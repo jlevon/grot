@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Starting from HEAD, add a commit that represents the entire difference between
+# HEAD and the other commit.
+
+commit=$1
+
+set -x
+
+head=$(git rev-parse HEAD)
+git checkout $commit
+git reset --soft $head
+git commit -m 'changes from $commit'
+
+git log --oneline -1
+
