@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# why I have to do this by hand I don't know
+
+pkg=""
+
+for i in $*; do
+    pkg="$pkg $(yum whatprovides -q $i | head -1 | awk -F: '{print $1}')"
+done
+
+echo sudo yum -y install $pkg
+sudo yum -y install $pkg
