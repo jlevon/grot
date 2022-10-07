@@ -5,13 +5,13 @@ cd $1
 for i in *; do
 	fixed="${i%\?*}"
 	if [ "$i" != "$fixed" ]; then
-		echo mv "$i" "$fixed"
-		mv "$i" "$fixed"
+		echo mv "$i" "$RANDOM.$fixed"
+		mv "$i" "$RANDOM.$fixed"
 	fi
 	fixed="${i%\%3f*}"
 	if [ "$i" != "$fixed" ]; then
-		echo mv "$i" "$fixed"
-		mv "$i" "$fixed"
+		echo mv "$i" "$RANDOM.$fixed"
+		mv "$i" "$RANDOM.$fixed"
 	fi
 done
 
