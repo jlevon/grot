@@ -2,6 +2,7 @@
 
 # squash current diff, staged, or current commit into a specific commit
 
+base=${2:-master}
 git commit -a --fixup $1
 
-git rebase --autosquash -i master
+git rebase --autosquash -i $base
