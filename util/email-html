@@ -1,11 +1,27 @@
 #!/bin/bash
 
+#Use like this in procmail:
+#:0
+#* Content-Type: text/html;
+#{
+#:0c
+#html/
+#:0fwb
+#| formail -I X-Microsoft-Antispam-Message-Info -I x-ms-exchange-crosstenant-userprincipalname
+#:0fwb
+#| email-html
+#:0fwh
+#| formail -i "Content-Type: text/plain; charset=us-ascii"
+#}
+
+set -e
+set -o pipefail
+
 dir=$(mktemp -d -p /tmp)
 
-ripmime -i - -d $dir --name-by-type
+cat - | formail -I X-Microsoft-Antispam-Message-Info -I x-ms-exchange-crosstenant-userprincipalname | ripmime -i - -d $dir --name-by-type
 
 cat $dir/text-html* | w3m -no-mouse -o display_link \
-    -o display_link_number -T text/html | \
-    sed 's!https*://.*!\x1B]8;;&\x1B\\&\x1B]8;;\x1B\\!g' | less -rX
+    -o display_link_number -T text/html -X -dump
 
 rm -rf $dir
