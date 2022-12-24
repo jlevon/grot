@@ -6,10 +6,10 @@
 
 
 indir=$(pwd)
-dir=/tmp/p.$$
-mkdir $dir
-cp AudioCD0.k3b $dir/
-cd $dir
+outdir=/tmp/p.$$
+mkdir $outdir
+cp AudioCD0.k3b $outdir/
+cd $outdir
 unzip *.k3b
 declare -a urls
 declare -a titles
@@ -27,13 +27,31 @@ m3u=$indir/$date.m3u
 cat >$m3u <<EOF
 #EXTM3U
 #EXTALB:jlevon $date
-#EXTIMG: frontcover
-https://movementarian.org/$date/cover.png
 EOF
 
+# FIXME: can't add this - breaks shitty safari
+#EXTIMG: frontcover
+# https://movementarian.org/$date/cover.png
+
 cat >$indir/.htaccess <<EOF
-RewriteRule ^$ "$date.m3u"
-DirectoryIndex disabled
+AddType application/x-mpegURL .m3u
+DirectoryIndex index.html
+EOF
+
+cat >$outdir/index.html <<EOF
+<title>$date</title>
+
+<h1>$date</h1>
+
+<img src="https://movementarian.org/$date/cover.png"></img>
+
+<p>
+
+<a href="$date.m3u">m3u playlist</a>
+
+<p>
+
+<ol>
 EOF
 
 echo
@@ -55,10 +73,13 @@ for i in ${!urls[@]}; do
 	id3v2 -A "jlevon $date" $dir/$newfile
 	uri="$(echo -n "$newfile" | jq -sRr @uri)"
 	echo "https://movementarian.org/$date/$uri" >>$m3u
+	echo "<li><a href=\"https://movementarian.org/$date/$uri\">$track $artist - $title</li>" >>$outdir/index.html
 
 	echo -n "/ $track $artist - $title "
 	nr=$(( $nr + 1 ))
 done
+
+echo "</ol></html>" >>$outdir/index.html
 echo
 echo
 
