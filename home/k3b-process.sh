@@ -21,7 +21,7 @@ mapfile -t urls < <(cat maindata.xml | xmlstarlet sel -t -v "/k3b_audio_project/
 mapfile -t titles < <(cat maindata.xml | xmlstarlet sel -t -v "/k3b_audio_project/contents/track/cd-text/title")
 mapfile -t artists < <(cat maindata.xml | xmlstarlet sel -t -v "/k3b_audio_project/contents/track/cd-text/artist")
 
-date=$(date +%Y.%m)
+date=$(basename $indir)
 m3u=$indir/$date.m3u
 
 cat >$m3u <<EOF
@@ -38,7 +38,7 @@ AddType application/x-mpegURL .m3u
 DirectoryIndex index.html
 EOF
 
-cat >$outdir/index.html <<EOF
+cat >$indir/index.html <<EOF
 <title>$date</title>
 
 <h1>$date</h1>
@@ -70,17 +70,18 @@ for i in ${!urls[@]}; do
 	echo "#EXTINF:$length,$artist - $title" >>$m3u
 	newfile="$track.$artist.$title.mp3"
 	mv "$path" "$dir/$newfile" 2>/dev/null
-	id3v2 -A "jlevon $date" $dir/$newfile
+	id3v2 -A "jlevon $date" "$dir/$newfile"
+	id3v2 -T "$track" "$dir/$newfile"
 	uri="$(echo -n "$newfile" | jq -sRr @uri)"
 	echo "https://movementarian.org/$date/$uri" >>$m3u
-	echo "<li><a href=\"https://movementarian.org/$date/$uri\">$track $artist - $title</li>" >>$outdir/index.html
+	echo "<li><a href=\"https://movementarian.org/$date/$uri\">$artist - $title</li>" >>$indir/index.html
 
 	echo -n "/ $track $artist - $title "
 	nr=$(( $nr + 1 ))
 done
 
-echo "</ol></html>" >>$outdir/index.html
+echo "</ol></html>" >>$indir/index.html
 echo
 echo
 
-rsync --delete -avz $indir/ movement@ssh.movementarian.org:movementarian.org/$date
+rsync -avz $indir/ movement@ssh.movementarian.org:movementarian.org/$date
