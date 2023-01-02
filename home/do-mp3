@@ -1,6 +1,6 @@
 #!/bin/bash
 
-mv ~/untitled\ #1.mp3 ~/p
+mv ~/untitled\ #?.mp3 ~/p
 cd ~/p
 easytag .
 file="$(ls *.mp3)"
