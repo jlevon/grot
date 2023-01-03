@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# dumps the QOM tree. Expects ~/scripts/ to be the dir from qemu-kvm.
+# As it disables libvirtd, will cause havoc.
+
+# Note, there is some kind of bug here that will have some properties causing
+# exceptions. However, they can still be retrieved by hand with something like:
+#
+# virsh qemu-monitor-command fb2d5c14-8ac3-40ed-9e39-8148b0cdd073 '{"execute":
+# "qom-get", "arguments": {"path": "/objects/ram-node0", "property": "addr" }}'
+
+vm=$1
+uuid=$(virsh dominfo $vm | awk '/UUID:/ { print $2 }')
+
+systemctl stop libvirtd
+~/scripts/qmp/qom-tree -s /var/lib/libvirt/qemu/domain-$uuid/monitor.sock >$vm.tree.out
+echo $vm.tree.out
+systemctl start libvirtd
