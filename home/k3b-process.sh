@@ -15,6 +15,10 @@ declare -a urls
 declare -a titles
 declare -a artists
 
+echo $outdir
+
+#set -x
+
 cat maindata.xml | xmlstarlet sel -t -v "/k3b_audio_project/contents/track/sources/file/@url"  | mapfile -t urls
 cat /etc/hosts | mapfile -t urls
 mapfile -t urls < <(cat maindata.xml | xmlstarlet sel -t -v "/k3b_audio_project/contents/track/sources/file/@url")
