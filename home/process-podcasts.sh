@@ -20,7 +20,7 @@ done
 
 for i in *.mp3; do
 	if ! id3v2 -l "$i" | grep '^TIT2'>/dev/null; then
-		id3v2 -t "${i%\.mp3}" "$i"
+		id3v2 -t "${i%\.mp3}.$RANDOM" "$i"
 	fi
 	if ! id3v2 -l "$i" | grep '^TALB'>/dev/null; then
 		id3v2 -A "$(id3v2 -l "$i" | grep ^TPE1 | cut -f2 -d:)" "$i"
