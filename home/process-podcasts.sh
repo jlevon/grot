@@ -19,17 +19,17 @@ for i in *; do
 done
 
 for i in *.mp3; do
-	if ! id3v2 -l "$i" | grep '^TIT2'>/dev/null; then
-		id3v2 -t "${i%\.mp3}.$RANDOM" "$i"
+	if ! mid3v2 -l "$i" | grep '^TIT2'>/dev/null; then
+		mid3v2 -t "${i%\.mp3}.$RANDOM" "$i"
 	fi
-	if ! id3v2 -l "$i" | grep '^TALB'>/dev/null; then
-		id3v2 -A "$(id3v2 -l "$i" | grep ^TPE1 | cut -f2 -d:)" "$i"
+	if ! mid3v2 -l "$i" | grep '^TALB'>/dev/null; then
+		mid3v2 -A "$(mid3v2 -l "$i" | grep ^TPE1 | cut -f2 -d:)" "$i"
 	fi
-	if ! id3v2 -l "$i" | grep '^TCON.*186'>/dev/null; then
-		id3v2 -g 186 "$i"
+	if ! mid3v2 -l "$i" | grep '^TCON.*186'>/dev/null; then
+		mid3v2 -g 186 "$i"
 	fi
-	if id3v2 -l "$i" | grep '^COMM'>/dev/null; then
-		id3v2 -c "" "$i"
+	if mid3v2 -l "$i" | grep '^COMM'>/dev/null; then
+		mid3v2 -c "" "$i"
 	fi
 
 done

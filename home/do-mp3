@@ -5,6 +5,6 @@ cd ~/p
 easytag .
 file="$(ls *.mp3)"
 cp *.mp3 ~/shared/mp3/tunes/
-mv *.mp3 ~/shared/mp3/2022.12/
+mv *.mp3 ~/shared/mp3/$(date +%Y.12)/
 
-echo "mplayer ~/shared/mp3/2022.12/$file"
+echo "mplayer \"~/shared/mp3/$(date +%Y.12)/$file\""
