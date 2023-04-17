@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# create tags for /usr/include
+
+find /usr/include -type f | ctags -R -L - -o ~/src/include.tags
