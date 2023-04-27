@@ -5,6 +5,6 @@ shift
 
 echo "- ${@} -------------"
 for (( i=1; i<=$count; i++ )); do
-	${@}
+	eval $*
 done
 echo "--------------"
