@@ -1,0 +1,5 @@
+#!/bin/bash
+
+for issue in $*; do
+    jira issue edit --no-input --assignee x  $issue
+done
