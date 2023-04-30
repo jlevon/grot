@@ -5,10 +5,31 @@
 # first indication of a remote branch such as "origin/master", "origin/dev/foo",
 # etc.
 #
-
 #
 # Presuming the first remote is the right one sucks, but there is literally no
 # other meaningful way to do this.
 #
 remote=${1:-$(git remote | head -1)}
-git log --oneline --decorate | grep " ($remote" | sed "s,^.* ($remote\([A-Za-z0-9./_-]*\).*$,$remote\1," | head -n1
+branch=
+
+git log --oneline --decorate | while read ln; do
+    echo "$ln" | grep "^[a-z0-9]* (" >/dev/null 2>&1 || {
+        continue
+    }
+
+    refs="$(echo $ln | sed 's+^[a-z0-9]* (++;s+) .*++;s+,++g')"
+
+    for ref in $refs; do
+        echo $ref | grep "^$remote" >/dev/null 2>&1 || {
+            continue
+        }
+        echo $ref | grep "^$remote/work/" >/dev/null 2>&1 && {
+            continue
+        }
+        echo $ref | grep "^$remote/HEAD" >/dev/null 2>&1 && {
+            continue
+        }
+        echo $ref
+        break 2
+    done
+done
