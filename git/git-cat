@@ -2,5 +2,4 @@
 
 #echo $1
 #echo $2
-# git show $1:./$2
-git cat-file -p $1:./Makefile
+git show $1:./$2
