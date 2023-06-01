@@ -22,4 +22,4 @@ echo "$1" >>~/shared/podcasts/downloaded
 
 cd /home/jlevon/shared/podcasts/incoming/
 
-curl -RksSLJO "$1" 
+/home/jlevon/src/curl/src/curl --no-clobber -RksSLJO "$1"
