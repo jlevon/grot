@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -x
+
+cd /home/moz/podcasts/incoming/
+
+/home/moz/src/get_iplayer/get_iplayer --no-purge --type=radio --get Ravenscroft
+/home/moz/src/get_iplayer/get_iplayer --no-purge --type=radio --get Eldon
+/home/moz/src/get_iplayer/get_iplayer --no-purge --type=radio --get Riches
+/home/moz/src/get_iplayer/get_iplayer --no-purge --type=radio --get Herring
+/home/moz/src/get_iplayer/get_iplayer --no-purge --type=radio --get Poets
+/home/moz/src/get_iplayer/get_iplayer --no-purge --type=radio --get "Jason Cook"
+/home/moz/src/get_iplayer/get_iplayer --no-purge --type=radio --get "Armando"
+/home/moz/src/get_iplayer/get_iplayer --no-purge --type=radio --get "So Wrong"
+/home/moz/src/get_iplayer/get_iplayer --no-purge --type=radio --get "Chain Reaction"
+/home/moz/src/get_iplayer/get_iplayer --no-purge --type=radio --get "Tim Key"
+
+for i in *.m4a; do
+	ffmpeg -i "$i" "$i".mp3
+done
+
+rm *.m4a
