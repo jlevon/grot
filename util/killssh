@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# when using ControlMaster, it gets stuck when the connection goes down.
+# This will kill the relevant connection by doing e.g. "killssh dev"
+
+ssh -O exit $*
