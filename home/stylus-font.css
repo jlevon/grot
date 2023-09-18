@@ -1,0 +1,22 @@
+* { font-family: sans-serif !important; }
+
+.react-code-text { font-family: Monospace !important;  }
+.react-code-line-contents { font-family: Monospace !important; }
+.react-file-line span { font-family: Monospace !important;  }
+
+pre { font-family: Monospace !important; }
+pre * { font-family: Monospace !important; }
+code  { font-family: Monospace !important; }
+code * { font-family: Monospace !important; }
+
+.blob-code-inner *  { font-family: Monospace !important; }
+.blob-code-inner { font-family: Monospace !important; }
+.CodeMirror-scroll * { font-family: Monospace !important; }
+.gr-diff { font-family: Monospace !important; }
+.gr-diff * { font-family: Monospace !important; }
+.gr-linked-text { font-family: Monospace !important;  }
+.gr-file-list { font-family: Monospace !important;  }
+
+.google-material-icons { font-family: 'Google Material Icons' !important; }
+
+
