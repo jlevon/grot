@@ -18,6 +18,7 @@ from datetime import datetime
 
 import RPi.GPIO as GPIO
 import subprocess
+import logging
 import alsaaudio
 import threading
 import signal
@@ -25,6 +26,8 @@ import wave
 import time
 import sys
 import os
+
+logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
 samplefile = sys.argv[1]
 device='plughw:1,0'
@@ -88,14 +91,14 @@ def play():
             if data:
                 out.write(data)
             else:
-                print('looping after %d plays, active %s' % (count, active))
+                logging.info('looping after %d plays, active %s' % (count, active))
                 count += 1
                 f.rewind()
 
-        print('pausing audio')
+        logging.info('pausing audio')
         out.pause()
 
-    print('stopped after %d plays' % count)
+    logging.info('stopped after %d plays' % count)
 
 def wait():
     global active
@@ -103,13 +106,13 @@ def wait():
     while True:
         input_state = GPIO.input(18)
         if input_state:
-            print('got input_state %s, active -> False' % input_state)
+            logging.info('got input_state %s, active -> False' % input_state)
             active = False
             break
         time.sleep(0.2)
 
 def trigger():
-    print('triggering at %s' % time.time())
+    logging.info('triggering at %s' % time.time())
 
     tn = threading.Thread(target=notify)
     tn.start()
@@ -128,12 +131,12 @@ def settle():
     global settle_time
     time.sleep(settle_time)
     input_state = GPIO.input(18)
-    print('input state now %s' % input_state)
+    logging.info('input state now %s' % input_state)
     return not input_state
 
 def falling_edge(channel):
     input_state = GPIO.input(18)
-    print('got falling edge, input_state %s' % input_state)
+    logging.info('got falling edge, input_state %s' % input_state)
     if settle():
         trigger()
 
@@ -148,6 +151,6 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.add_event_detect(18, GPIO.FALLING, callback=falling_edge, bouncetime=(bounce_time * 1000))
 
-print('started')
+logging.info('started')
 
 signal.pause()

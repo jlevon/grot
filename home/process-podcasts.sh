@@ -28,7 +28,7 @@ for i in *.mp3; do
 		mid3v2 -t "${i%\.mp3}.$RANDOM" "$i"
 	fi
 	if ! mid3v2 -l "$i" | grep -a '^TALB'>/dev/null; then
-		mid3v2 -A "$(mid3v2 -l "$i" | grep -a ^TPE1 | cut -f2 -d:)" "$i"
+		mid3v2 -A "$(mid3v2 -l "$i" | grep -a ^TPE1 | cut -f2 -d=)" "$i"
 	fi
 	if ! mid3v2 -l "$i" | grep -a '^TCON.*186'>/dev/null; then
 		mid3v2 -g 186 "$i"
