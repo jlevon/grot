@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# rebase against the submodule branch
+
+git rebase -i $(git sm-branch)

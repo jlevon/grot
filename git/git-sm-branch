@@ -1,0 +1,7 @@
+#!/bin/bash
+
+repo=$(basename -s .git `git config --get remote.origin.url`)
+
+awk "
+    /$repo/ { getline tmp; split(tmp,a,\"=\"); print a[2] ; exit 0}
+" ../../.ahvbranches | sed 's+ ++g;s+^+origin/+'
