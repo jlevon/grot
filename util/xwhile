@@ -1,0 +1,12 @@
+#!/bin/bash
+
+condition="$1"
+shift
+
+set -x
+
+while $condition ; do
+    echo "- ${@} -------------"
+    	eval $*
+    done
+echo "--------------"
