@@ -1,0 +1,7 @@
+#!/bin/bash
+
+while :; do
+    for pid in $(pgrep $1); do
+        strace -f -p $pid &
+    done
+done
