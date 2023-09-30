@@ -1,0 +1,12 @@
+#!/bin/bash
+
+dir=$1
+
+test -n $dir || dir=.
+
+echo $(realpath $dir)
+echo ------------------------------------------------
+
+git -C $dir log --pretty=oneline --abbrev-commit -4
+echo ------------------------------------------------
+git -C $dir status
