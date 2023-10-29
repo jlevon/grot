@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+cat - | w3m -no-mouse -o display_link -o display_link_number -T text/html -X -dump
