@@ -25,6 +25,7 @@ import signal
 import wave
 import time
 import sys
+import urllib.request
 import os
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -83,6 +84,10 @@ def play():
         out.setrate(rate)
         out.setformat(format)
         out.setperiodsize(periodsize)
+
+        with open("doorbell_url.txt", 'r') as urlf:
+            url=urlf.read().strip('\n')
+            urllib.request.urlopen(url)
 
         # We always play at least one time round...
         while active or count < 1:
