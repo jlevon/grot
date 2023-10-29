@@ -44,7 +44,7 @@ def notify():
 
     msg = MIMEText('At %s' % datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     msg['From'] = 'doorbell <levon@movementarian.org>'
-    msg['To'] = 'John Levon <john.levon@gmail.com>'
+    msg['To'] = 'John Levon <doorbell@movementarian.org>'
     msg['Subject'] = 'Someone is ringing the doorbell'
 
     p = Popen(['/usr/sbin/sendmail', '-f', 'levon@movementarian.org', '-t', '-oi'], stdin=PIPE)
