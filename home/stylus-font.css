@@ -4,6 +4,9 @@
 .react-code-line-contents { font-family: Monospace !important; }
 .react-file-line span { font-family: Monospace !important;  }
 
+.fa { font-family: FontAwesome !important; }
+.fas { font-family: "Font Awesome 6 Free" !important; }
+
 pre { font-family: Monospace !important; }
 pre * { font-family: Monospace !important; }
 code  { font-family: Monospace !important; }
@@ -17,6 +20,15 @@ code * { font-family: Monospace !important; }
 .gr-linked-text { font-family: Monospace !important;  }
 .gr-file-list { font-family: Monospace !important;  }
 
+
+
+
+
+.google-symbols { font-family: 'Google Symbols' !important; }
+.glyphicon { font-family: 'Glyphicons Regular' !important; }
+.material-icons-extended { font-family: 'Material Icons Extended' !important; }
+.material-icons { font-family: 'Material Icons' !important; }
+.material-icons-outlined { font-family: 'Material Icons' !important; }
 .google-material-icons { font-family: 'Google Material Icons' !important; }
 
 
