@@ -40,6 +40,10 @@ bounce_time = 1
 active = False
 
 def notify():
+    with open("doorbell_url.txt", 'r') as urlf:
+        url=urlf.read().strip('\n')
+        urllib.request.urlopen(url)
+
     subprocess.run(['/home/pi/notify-sent'])
 
     msg = MIMEText('At %s' % datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
@@ -51,59 +55,77 @@ def notify():
     p.stdin.write(msg.as_string().encode())
     p.stdin.close()
 
+def open_wav():
+    global format
+    global out
+    global periodsize
+    global wavfile
+
+    wavfile = wave.open(samplefile)
+
+    # things go horrible if the rate isn't 48000 for some reason
+    if wavfile.getframerate() != 48000:
+        raise ValueError('file must be 48000 rate')
+
+    format = None
+    width = wavfile.getsampwidth()
+    # 8bit is unsigned in wav files
+    if width == 1:
+        format = alsaaudio.PCM_FORMAT_U8
+    # Otherwise we assume signed data, little endian
+    elif width == 2:
+        format = alsaaudio.PCM_FORMAT_S16_LE
+    elif width == 3:
+        format = alsaaudio.PCM_FORMAT_S24_3LE
+    elif width == 4:
+        format = alsaaudio.PCM_FORMAT_S32_LE
+    else:
+        raise ValueError('Unsupported format')
+
+    rate = wavfile.getframerate()
+
+    periodsize = rate // 8
+
+    logging.info("opening alsa")
+    out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, device=device)
+    logging.info("out.setchannels(wavfile.getnchannels())")
+    out.setchannels(wavfile.getnchannels())
+    logging.info("out.setrate(rate)")
+    out.setrate(rate)
+    logging.info("out.setformat(format)")
+    out.setformat(format)
+    logging.info("out.setperiodsize(periodsize)")
+    out.setperiodsize(periodsize)
+
+
 def play():
-    global samplefile
     global active
 
     active = True
     count = 0
 
-    with wave.open(samplefile) as f:
+    logging.info('started playing at %s' % time.time())
 
-        format = None
+    # We always play at least one time round...
+    while active or count < 1:
+        data = wavfile.readframes(periodsize)
 
-        # 8bit is unsigned in wav files
-        if f.getsampwidth() == 1:
-            format = alsaaudio.PCM_FORMAT_U8
-        # Otherwise we assume signed data, little endian
-        elif f.getsampwidth() == 2:
-            format = alsaaudio.PCM_FORMAT_S16_LE
-        elif f.getsampwidth() == 3:
-            format = alsaaudio.PCM_FORMAT_S24_3LE
-        elif f.getsampwidth() == 4:
-            format = alsaaudio.PCM_FORMAT_S32_LE
+        if data:
+            out.write(data)
         else:
-            raise ValueError('Unsupported format')
+            logging.info('looping after %d plays, active %s' % (count, active))
+            count += 1
+            wavfile.rewind()
 
-        rate = f.getframerate()
+    logging.info('stopping audio')
 
-        periodsize = rate // 8
-
-        out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, device=device)
-        out.setchannels(f.getnchannels())
-        out.setrate(rate)
-        out.setformat(format)
-        out.setperiodsize(periodsize)
-
-        with open("doorbell_url.txt", 'r') as urlf:
-            url=urlf.read().strip('\n')
-            urllib.request.urlopen(url)
-
-        # We always play at least one time round...
-        while active or count < 1:
-            data = f.readframes(periodsize)
-
-            if data:
-                out.write(data)
-            else:
-                logging.info('looping after %d plays, active %s' % (count, active))
-                count += 1
-                f.rewind()
-
-        logging.info('pausing audio')
-        out.pause()
+    out.pause()
+    out.close()
+    wavfile.close()
 
     logging.info('stopped after %d plays' % count)
+
+    open_wav()
 
 def wait():
     global active
@@ -119,11 +141,11 @@ def wait():
 def trigger():
     logging.info('triggering at %s' % time.time())
 
-    tn = threading.Thread(target=notify)
-    tn.start()
-
     tp = threading.Thread(target=play)
     tp.start()
+
+    tn = threading.Thread(target=notify)
+    tn.start()
 
     tw = threading.Thread(target=wait)
     tw.start()
@@ -145,16 +167,11 @@ def falling_edge(channel):
     if settle():
         trigger()
 
-with wave.open(samplefile) as f:
-    # things go horrible if the rate isn't 48000 for some reason
-    if f.getframerate() != 48000:
-        raise ValueError('file must be 48000 rate')
-    if f.getsampwidth() not in [ 1, 2, 3, 4]:
-            raise ValueError('Unsupported format')
-
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.add_event_detect(18, GPIO.FALLING, callback=falling_edge, bouncetime=(bounce_time * 1000))
+
+open_wav()
 
 logging.info('started')
 
