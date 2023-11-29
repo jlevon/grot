@@ -16,7 +16,7 @@ for i in *; do
 	if [[ "$i" = "SoundCloud%20Download" ]]; then
 		mv $i $i.$RANDOM.mp3
 	fi
-	fixed="${i%.mp3.[0-9]}"
+	fixed="${i%.mp3.[0-9]*}"
 	if [ "$i" != "$fixed" ]; then
 		echo mv "$i" "$fixed.$RANDOM.mp3"
 		mv "$i" "$fixed.$RANDOM.mp3"
