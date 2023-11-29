@@ -1,0 +1,53 @@
+#!/usr/bin/python3
+
+from ytmusicapi import YTMusic
+from mutagen.easyid3 import EasyID3
+from datetime import datetime
+from urllib.parse import unquote
+import sys
+import os
+
+ytmusic = YTMusic("/home/jlevon/.ytmusic.oauth.json")
+
+#search_results = ytmusic.search("Oasis Wonderwall")
+
+playlist_id = None
+
+def process_m3u(m3u_file):
+    with open(m3u_file, 'r') as f:
+        lines = f.readlines()
+
+    audio_files = [line.strip() for line in lines if line.strip().endswith(('.mp3', '.flac', '.ogg'))]
+
+    for file_path in audio_files:
+        file = unquote(os.path.basename(file_path))
+        abs_path = os.path.dirname(m3u_file) + "/" + file
+
+        print(f"Processing: {abs_path}")
+
+        try:
+            audio = EasyID3(abs_path)
+            title = audio.get('title', ['Unknown'])[0]
+            artist = audio.get('artist', ['Unknown'])[0]
+            #album = audio.get('album', ['Unknown'])[0]
+
+            print(f"Title: {title} Artist: {artist}")
+
+            search_results = ytmusic.search(f"{title} by {artist}", filter="videos")
+            ytmusic.add_playlist_items(playlist_id, [search_results[0]['videoId']])
+            #print(search_results)
+        except Exception as e:
+            print(f"Error processing {abs_path}: {e}")
+
+if __name__ == "__main__":
+
+    current_date = datetime.now()
+    date = current_date.strftime("%Y-12")
+    print(date)
+    date="2022-12"
+    m3u_file_path = sys.argv[1]
+
+    playlist_id = ytmusic.create_playlist(date, f"jlevon {date} mix",
+                                          privacy_status="PUBLIC")
+
+    process_m3u(m3u_file_path)
