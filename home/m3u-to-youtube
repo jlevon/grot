@@ -44,7 +44,6 @@ if __name__ == "__main__":
     current_date = datetime.now()
     date = current_date.strftime("%Y-12")
     print(date)
-    date="2022-12"
     m3u_file_path = sys.argv[1]
 
     playlist_id = ytmusic.create_playlist(date, f"jlevon {date} mix",
