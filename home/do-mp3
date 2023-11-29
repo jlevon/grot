@@ -7,4 +7,4 @@ file="$(ls *.mp3)"
 cp *.mp3 ~/shared/mp3/tunes/
 mv *.mp3 ~/shared/mp3/$(date +%Y.12)/
 
-echo "mplayer \"~/shared/mp3/$(date +%Y.12)/$file\""
+mplayer "/home/jlevon/shared/mp3/$(date +%Y.12)/$file"
