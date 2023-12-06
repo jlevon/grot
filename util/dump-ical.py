@@ -7,13 +7,17 @@ import vobject
 
 def get_invitation_from_path(path):
     with open(path) as f:
+        buf = f.read()
+        if not buf.endswith("END:VCALENDAR\n"):
+            buf += "END:VCALENDAR\n"
+
         try:
             # vobject uses deprecated Exceptions
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                return vobject.readOne(f, ignoreUnreadable=True)
+                return vobject.readOne(buf, ignoreUnreadable=True)
         except AttributeError:
-            return vobject.readOne(f, ignoreUnreadable=True)
+            return vobject.readOne(buf, ignoreUnreadable=True)
 
 
 def person_string(c):
