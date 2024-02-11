@@ -47,12 +47,12 @@ cat >$indir/index.html <<EOF
 
 <h1>$date</h1>
 
-<img src="https://movementarian.org/$date/cover.png"></img>
+<img height="600" src="https://movementarian.org/$date/cover.png"></img>
 
 <p>
-
 <a href="$date.m3u">m3u playlist</a>
-
+<p>
+<a href="FIXME">youtube playlist</a>
 <p>
 
 <ol>
@@ -88,4 +88,5 @@ echo "</ol></html>" >>$indir/index.html
 echo
 echo
 
+echo /home/jlevon/src/grot/home/m3u-to-youtube $date.m3u
 rsync -avz $indir/ movement@ssh.movementarian.org:movementarian.org/$date
