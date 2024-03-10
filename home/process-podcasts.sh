@@ -24,6 +24,12 @@ for i in *; do
 done
 
 for i in *.mp3; do
+	if echo $i | grep -q 'Club Fish'; then
+		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
+	fi
+	if echo $i | grep -q 'OUTTAKES'; then
+		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
+	fi
 	if ! mid3v2 -l "$i" | grep -a '^TIT2'>/dev/null; then
 		mid3v2 -t "${i%\.mp3}.$RANDOM" "$i"
 	fi
