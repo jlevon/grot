@@ -35,7 +35,7 @@ device='plughw:1,0'
 
 # in seconds
 settle_time = 0.1
-bounce_time = 1
+bounce_time = 2
 
 active = False
 
@@ -154,18 +154,17 @@ def trigger():
     tp.join()
     tn.join()
 
-def settle():
-    global settle_time
-    time.sleep(settle_time)
-    input_state = GPIO.input(18)
-    logging.info('input state now %s' % input_state)
-    return not input_state
-
 def falling_edge(channel):
     input_state = GPIO.input(18)
     logging.info('got falling edge, input_state %s' % input_state)
-    if settle():
-        trigger()
+    for _ in range(10):
+        time.sleep(settle_time)
+        input_state = GPIO.input(18)
+        logging.info('input_state now %s' % input_state)
+        if not input_state:
+            trigger()
+            return
+    logging.info('never saw input_state=0, ignoring')
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
