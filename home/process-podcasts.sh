@@ -30,6 +30,20 @@ for i in *.mp3; do
 	if echo $i | grep -q 'OUTTAKES'; then
 		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
 	fi
+	if echo $i | grep -q '^202.* SS '; then
+		if ! mid3v2 -l "$i" | grep -a '^TALB'>/dev/null; then
+			mid3v2 -a "Serious Eats" -A "Serious Eats" "$i"
+		fi
+	fi
+	if mid3v2 -l "$i" | grep -a 'TCOP=iHeart'>/dev/null; then
+		mid3v2 --delete-frames TCOP "$i"
+	fi
+	if mid3v2 -l "$i" | grep -a 'TPE1=iHeart'>/dev/null; then
+		mid3v2 -a "$(mid3v2 -l "$i" | grep -a ^TALB | cut -f2 -d=)" "$i"
+	fi
+	if mid3v2 -l "$i" | grep -a 'TPE2=iHeart'>/dev/null; then
+		mid3v2 --delete-frames TPE2 "$i"
+	fi
 	if ! mid3v2 -l "$i" | grep -a '^TIT2'>/dev/null; then
 		mid3v2 -t "${i%\.mp3}.$RANDOM" "$i"
 	fi
