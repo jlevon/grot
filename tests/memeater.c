@@ -4,8 +4,9 @@
 #include <errno.h>
 
 #define ONE_MEG (1024 * 1024)
+#define ONE_PAGE (4096)
 
-int main()
+int main(int argc, char *argv[])
 {
 	size_t count = 0;
 
@@ -16,6 +17,11 @@ int main()
 			exit(1);
 		}
 		printf("\ralloc %luMB", count);
+        if (argc > 1 && argv[1] == "touch") {
+            for (char *p = a; p += ONE_PAGE; p < (a + ONE_MEG)) {
+                *p = 1;
+            }
+        }
 		count++;
 	}
 }
