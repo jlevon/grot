@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# If we're on master and want a single commit of dev/foo,
+# then checkout master, run git bsquash dev/foo, to get
+# a staged commit of everything.
+
+commit=$1
+
+set -x
+
+git merge --squash $commit
+git commit -m "changes from $commit"
+gerrit-change-id
