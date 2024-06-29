@@ -1,0 +1,9 @@
+#!/bin/bash
+
+for i in $(git branch --format='%(refname:short)'); do
+    echo "delete $i ?"
+    read input
+    if [[ $input = "y" ]]; then
+        git branch -D $i
+    fi
+done
