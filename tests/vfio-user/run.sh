@@ -6,7 +6,8 @@ rm -f /tmp/vfio-user.sock ;
 )
 
 sudo ~/src/qemu/build/qemu-system-x86_64 -D qemu.log -machine accel=kvm,type=q35 \
-   -cpu host -m 2G -mem-prealloc -object memory-backend-file,id=ram-node0,prealloc=yes,mem-path=/dev/hugepages/gpio,share=yes,size=2G \
+   -cpu host -m 2G -mem-prealloc -object memory-backend-file,id=ram-node0,prealloc=yes,mem-path=/dev/hugepages/spdk,share=yes,size=2G \
+   -numa node,memdev=ram-node0 \
    -nographic -device virtio-net-pci,netdev=net0 -netdev user,id=net0,hostfwd=tcp::2222-:22 \
    -drive if=virtio,format=qcow2,file=/home/jlevon/bionic-server-cloudimg-amd64.img -drive if=virtio,format=raw,file=seed.img \
    -device vfio-user-pci,socket=/tmp/vfio-user.sock
