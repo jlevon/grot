@@ -3,6 +3,8 @@
 # given a k3b file, extract it, rename all mp3 files in the given order, then
 # create everything else. Expects "cover.png". After processing need to recreate
 # the k3b file from the mp3s again.
+#
+# when done, use m3u-to-youtube and then https://www.tunemymusic.com/transfer/youtube-to-spotify
 
 #
 # after this run m3u-to-youtube then https://www.tunemymusic.com/transfer/youtube-to-spotify
