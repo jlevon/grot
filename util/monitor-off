@@ -1,0 +1,6 @@
+#!/bin/bash
+
+sudo ddcutil setvcp D6 05 --display 01
+
+# also
+# busctl --user set-property org.gnome.Mutter.DisplayConfig /org/gnome/Mutter/DisplayConfig org.gnome.Mutter.DisplayConfig PowerSaveMode i 1
