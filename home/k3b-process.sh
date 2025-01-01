@@ -4,6 +4,9 @@
 # create everything else. Expects "cover.png". After processing need to recreate
 # the k3b file from the mp3s again.
 
+#
+# after this run m3u-to-youtube then run YoutubeToSpotify
+
 
 indir=$(pwd)
 outdir=/tmp/p.$$
