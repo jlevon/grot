@@ -1,13 +1,17 @@
 #!/usr/bin/python3
 
-from ytmusicapi import YTMusic
+from ytmusicapi.ytmusic import OAuthCredentials, YTMusic
 from mutagen.easyid3 import EasyID3
 from datetime import datetime
 from urllib.parse import unquote
 import sys
 import os
 
-ytmusic = YTMusic("/home/jlevon/.ytmusic.oauth.json")
+client_id=open("/home/jlevon/.ytmusic.client_id", "r").read().strip("\n")
+print(client_id)
+client_secret=open("/home/jlevon/.ytmusic.client_secret", "r").read().strip("\n")
+print(client_secret)
+ytmusic = YTMusic("/home/jlevon/.ytmusic.oauth.json",  oauth_credentials=OAuthCredentials(client_id=client_id, client_secret=client_secret))
 
 #search_results = ytmusic.search("Oasis Wonderwall")
 

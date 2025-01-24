@@ -5,7 +5,7 @@
 # the k3b file from the mp3s again.
 
 #
-# after this run m3u-to-youtube then run YoutubeToSpotify
+# after this run m3u-to-youtube then https://www.tunemymusic.com/transfer/youtube-to-spotify
 
 
 indir=$(pwd)
@@ -57,6 +57,7 @@ cat >$indir/index.html <<EOF
 <p>
 <a href="FIXME">youtube playlist</a>
 <p>
+<a href="FIXME">spotify playlist</a>
 
 <ol>
 EOF
