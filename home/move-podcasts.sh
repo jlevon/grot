@@ -25,7 +25,7 @@ move ../home/BBC\ Radio\ 4/The\ Food\ Programme/ BBC\ Radio\ 4.The\ Food\ Progra
 move ../home/BBC\ Radio\ 4/The\ Food\ Programme/ The\ Food\ Programme.*
 move ../home/BBC\ Radio\ 4/The\ Kitchen\ Cabinet/ BBC\ Radio\ 4.The\ Kitchen\ Cabinet.*
 move ../home/BBC\ Radio\ 4/The\ Kitchen\ Cabinet/ The\ Kitchen\ Cabinet.*
-move ../home/No\ Such\ Thing\ As\ A\ Fish/ No\ Such\ Thing\ As\ A\ Fish.No\ Such\ Thing\ As\ A\ Fish.*
+move ../home/No\ Such\ Thing\ As\ A\ Fish/No\ Such\ Thing\ As\ A\ Fish/ No\ Such\ Thing\ As\ A\ Fish.No\ Such\ Thing\ As\ A\ Fish.*
 move ../home/Serious\ Eats/Serious\ Eats/ Serious\ Eats.*
 move ../home/The\ Bugle/The\ Bugle/ The\ Bugle*
 move ../ra/ *RA\ podcast*
