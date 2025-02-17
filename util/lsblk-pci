@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for device in $(lsblk -dn -o NAME); do 
+     echo "/dev/$device:$(udevadm info --query=path --name=/dev/$device | grep -oP 'pci.*')";
+done
+
