@@ -24,6 +24,12 @@ for i in *; do
 done
 
 for i in *.mp3; do
+	if echo $i | grep -q MSR; then
+		mid3v2 -a "Milk Street Radio" -A "Milk Street Radio" "$i"
+	fi
+	if echo $i | grep -q _SS_; then
+		mid3v2 -a "Serious Eats" -A "Serious Eats" "$i"
+	fi
 	if echo $i | grep -q 'Club Fish'; then
 		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
 	fi
