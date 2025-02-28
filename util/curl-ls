@@ -1,0 +1,8 @@
+#!/bin/bash
+
+url=$1
+
+curl -s $url | grep -v Parent.Directory | grep -v Last.modified | grep -oP '(?<=href=")[^"]*' | while read line;
+do
+    echo $url/$line
+done
