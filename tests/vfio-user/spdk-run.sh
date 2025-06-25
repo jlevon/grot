@@ -17,11 +17,16 @@ scripts/rpc.py nvmf_create_transport -t VFIOUSER  && 	scripts/rpc.py bdev_malloc
 
 sleep 1
 
-sudo -b mkdir -p /dev/hugepages/spdk
+# sudo -b mkdir -p /dev/hugepages/spdk
 
-sudo -b ~/src/qemu/build/qemu-system-x86_64 -D /tmp/qemu.log -machine accel=kvm,type=q35 \
+sudo -b ~/src/qemu.vfio-prep.v3/build/qemu-system-x86_64 --trace "vfio_user*" -D /tmp/qemu.log -machine accel=kvm,type=q35 \
    -cpu host -m 2G -mem-prealloc -object memory-backend-file,id=ram-node0,prealloc=yes,mem-path=/dev/hugepages/spdk,share=yes,size=2G \
    -numa node,memdev=ram-node0 \
-   -nographic -device virtio-net-pci,netdev=net0 -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+   -device virtio-net-pci,netdev=net0 -netdev user,id=net0,hostfwd=tcp::2222-:22 \
    -drive if=virtio,format=qcow2,file=/home/jlevon/bionic-server-cloudimg-amd64.img -drive if=virtio,format=raw,file=seed.img \
-   -device vfio-user-pci,socket=/var/run/cntrl
+   -nographic -device '{"driver":"vfio-user-pci","socket":{"path": "/var/run/cntrl", "type": "unix"},"bus":"pcie.0","addr":"0x5"}'
+
+
+
+
+#   -nographic -device vfio-user-pci,socket=/var/run/cntrl,bus=pcie.0,addr=0x03
