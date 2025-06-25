@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# move to a destination, accounting for existing directories
+
+rsync -a "$1" "$2"/"$1" && rm -rf "$1"
