@@ -3,9 +3,17 @@
 set -e
 set -x
 
+name=${1%.*}
+suffix=${1##*.}
 # escl:http://192.168.86.62:8080
 dev="hpaio:/net/ENVY_4500_series?ip=192.168.86.62"
 scanimage --device "$dev" --mode Color --progress --resolution 300 --format=tiff >a.tiff
-convert tiff:a.tiff a.pdf
-shrinkpdf a.pdf $1 300
-evince $1
+
+if [ "suffix" = "pdf" ]; then
+	convert tiff:a.tiff a.$suffix
+	shrinkpdf a.pdf $name.$suffix 300
+	evince $name.$suffix
+else
+	convert tiff:a.tiff $name.$suffix
+	phototonic $name.$suffix
+fi
