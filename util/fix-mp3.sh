@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -e
 
 for i in "$@"; do
 	echo xx${i}xx
