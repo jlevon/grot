@@ -35,22 +35,36 @@ times = {
 }
 
 bytes = {
-        "bit": ( 1024 * 8, "bits" ),
-        "B": ( 1024, "bytes" ),
-	"P": ( 128, "64-bit pointers" ),
-        "Bl": ( 2, "blocks" ),
-        "KB": ( 1, "kilobytes" ),
-        "p": ( 0.25, "(4K) pages" ),
-        "Lp": ( 1/2048.0, "(2MB) large pages" ),
-        "Kb": ( 8192 / 1000.0, "kilobits" ),
-        "Mb": ( 8192 / (1000.0 * 1000.0), "megabits" ),
-        "Gb": ( 8192 / (1000.0 * 1000.0 * 1000.0), "gigabits" ),
-        "MB": ( 1/1024.0, "megabytes" ),
-        "GB": ( 1/(1024.0 * 1024.0), "gigabytes" ),
-        "TB": ( 1/(1024.0 * 1024.0 * 1024.0), "terabytes" ),
-        "s1gblink": ( 8192 / (1000.0 * 1000.0 * 1000.0), "seconds over 1Gbit link" ),
-        "s10gblink": ( 8192 / (10 * 1000.0 * 1000.0 * 1000.0), "seconds over 10Gbit link" ),
+    "bit": (8, "bits"),
+    "B": (1, "bytes"),
+    "KiB": (1/1024.0, "kibibytes"),
+    "KB": (1/1000.0, "kilobytes"),
+    "MiB": (1/(1024.0 * 1024.0), "mibibytes"),
+    "MB": (1/(1000.0 * 1000.0), "megabytes"),
+    "GiB": (1/(1024.0 * 1024.0 * 1024.0), "gibibytes"),
+    "GB": (1/(1000.0 * 1000.0 * 1000.0), "gigabytes"),
+    "Gbit": (8/(1000.0 * 1000.0 * 1000.0), "gigabits"),
+
+    "Bl": (1/512.0, "512-bytes blocks"),
+    "p": (1/4096.0, "(4Kb) pages"),
+    "Lp": (1/2097152.0, "(2Mb) large pages"),
+    "P": (1/8.0, "64-bit pointers"),
+    "s1gblink": (8 / (1000.0 * 1000.0 * 1000.0), "seconds over 1Gbit link"),
+    "s10gblink": (8 / (10 * 1000.0 * 1000.0 * 1000.0), "seconds over 10Gbit link"),
 }
+
+# bytes = {
+#         "bit": ( 1024 * 8, "bits" ),
+#         "B": ( 1024, "bytes" ),
+#         "KB": ( 1, "kilobytes" ),
+#         "Kb": ( 8192 / 1000.0, "kilobits" ),
+#         "Mb": ( 8192 / (1000.0 * 1000.0), "megabits" ),
+#         "Gb": ( 8192 / (1000.0 * 1000.0 * 1000.0), "gigabits" ),
+#         "MB": ( 1/1024.0, "megabytes" ),
+#         "GB": ( 1/(1000.0 * 1000.0), "gigabytes" ),
+#         "GiB": ( 1/(1024.0 * 1024.0), "gibibytes" ),
+#         "TB": ( 1/(1024.0 * 1024.0 * 1024.0), "terabytes" ),
+# }
 
 if unit in times.keys():
         table = times
