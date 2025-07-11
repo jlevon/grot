@@ -1,0 +1,75 @@
+#!/usr/bin/python3
+
+import ast
+import os
+import re
+
+FORMAT_PLACEHOLDER_REGEX = re.compile(r'\{[^}]*\}')
+
+class FormatMisuseChecker(ast.NodeVisitor):
+    def __init__(self, filename):
+        self.filename = filename
+
+    def report(self, lineno, msg):
+        print(f"{self.filename}:{lineno} - {msg}")
+
+    def visit_Call(self, node):
+        # Check for .format() misuse
+        if isinstance(node.func, ast.Attribute) and node.func.attr == 'format':
+            s = self._get_string_value(node.func.value)
+            if s and FORMAT_PLACEHOLDER_REGEX.search(s):
+                arg_count = len(node.args) + len(node.keywords)
+                expected = s.count('{}') + len(FORMAT_PLACEHOLDER_REGEX.findall(s)) - s.count('{}')
+                if arg_count < expected:
+                    self.report(node.lineno, f"BUG: '{s}' uses .format() with only {arg_count} args (needs at least {expected})")
+
+        # Check for unformatted placeholders passed to function
+        for arg in node.args:
+            s = self._get_string_value(arg)
+            if s and FORMAT_PLACEHOLDER_REGEX.search(s):
+                # Only warn if not using f-strings or .format() or %
+                parent = getattr(node.func, 'attr', '')
+                if not self._is_likely_logging_style(s) and parent != 'format':
+                    self.report(node.lineno, f"WARNING: Possibly unformatted string with placeholders: '{s}'")
+
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node):
+        # Detect .format accessed but not called
+        if node.attr == 'format':
+            s = self._get_string_value(node.value)
+            #if s and FORMAT_PLACEHOLDER_REGEX.search(s):
+            #    self.report(node.lineno, f"WARNING: '{s}' uses .format but is not called")
+        self.generic_visit(node)
+
+    def _get_string_value(self, node):
+        # Extract string literal value from AST node
+        if isinstance(node, ast.Str):
+            return node.s
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        return None
+
+    def _is_likely_logging_style(self, s):
+        # Allow logging-style format strings like: "Injecting %s"
+        return '%s' in s or '%(' in s
+
+def scan_file(filepath):
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            code = f.read()
+        tree = ast.parse(code, filename=filepath)
+        checker = FormatMisuseChecker(filepath)
+        checker.visit(tree)
+    except (SyntaxError, UnicodeDecodeError) as e:
+        print(f"Skipping {filepath}: {e}")
+
+def find_py_files_and_check():
+    for root, _, files in os.walk('.'):
+        for name in files:
+            if name.endswith('.py'):
+                filepath = os.path.join(root, name)
+                scan_file(filepath)
+
+if __name__ == "__main__":
+    find_py_files_and_check()
