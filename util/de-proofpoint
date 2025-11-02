@@ -1,4 +1,37 @@
-#!/bin/bash
+#!/usr/bin/python3
 
-#cat - >/tmp/pp.$$
-cat - | perl -MMIME::QuotedPrint -0777 -nle 'print decode_qp($_)' | sed '/urldefense.proofpoint.com/{s+\&d=.*++;s+https://urldefense.proofpoint.com/v2/url?u=++;s+_+/+g;s+-3A+:+g;s+-2D+-+g;s+-23+#+;s+-5F+_+g;s+-3F+?+g;s+-3D+=+g;s+-26+\&+g;}'
+import sys
+import re
+import urllib.parse
+
+def decode_proofpoint_v2(url: str) -> str:
+    """Decode a Proofpoint URL Defense v2 link into its original URL."""
+    if "urldefense.proofpoint.com/v2/url" not in url:
+        return url.strip()
+
+    # Extract the u= parameter
+    match = re.search(r"[?&]u=([^&]+)", url)
+    if not match:
+        return url.strip()
+
+    encoded_url = match.group(1)
+
+    # Replace "-XX" hex patterns with "%XX"
+    encoded_url = re.sub(r'-([0-9A-F]{2})', r'%\1', encoded_url, flags=re.IGNORECASE)
+
+    # Convert Proofpoint path markers
+    encoded_url = encoded_url.replace('__', '://')
+    encoded_url = encoded_url.replace('_', '/')
+
+    # Decode percent escapes
+    decoded_url = urllib.parse.unquote(encoded_url)
+    return decoded_url.strip()
+
+def main():
+    for line in sys.stdin:
+        line = line.strip()
+        if line:
+            print(decode_proofpoint_v2(line))
+
+if __name__ == "__main__":
+    main()
