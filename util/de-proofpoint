@@ -137,11 +137,17 @@ def deproofpoint(line: str) -> str:
 
     try:
         urldefense_decoder = URLDefenseDecoder()
-        decoded = urldefense_decoder.decode(url)
-
-        url = requests.head(decoded, allow_redirects=True).url
+        url = urldefense_decoder.decode(url)
     except ValueError as e:
         return line
+
+    while "nutanix.com" not in url and "ntnx" not in url:
+        try:
+            r = requests.head(url, timeout=5, allow_redirects=False)
+            if r.status_code == 302:
+                url = r.headers["Location"]
+        except:
+            break
 
     return re.sub(r"http[^\s]+", url, line)
 
@@ -153,11 +159,8 @@ def main():
             if True and decoded:
                 print(decoded)
             else:
-                # Leave unmatched lines unchanged
                 print(line)
         except Exception as e:
-            print(e)
-            # On error, leave the line unchanged
             print(line, file=sys.stdout)
 
 if __name__ == "__main__":
