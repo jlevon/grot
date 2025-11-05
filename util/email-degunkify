@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+dir=$(mktemp -d -p /tmp)
+
+cat - >$dir/whole
+
+cat $dir/whole | ripmime -i - -d $dir --name-by-type
+cat $dir/text-plain* | $HOME/src/grot/util/de-proofpoint >$dir/body
+
+cat $dir/whole | formail -X '' -i "Content-Type: text/plain; charset=us-ascii" -I X-Microsoft-Antispam-Message-Info | cat - $dir/body
+
+rm -rf $dir
