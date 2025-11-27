@@ -27,13 +27,14 @@ QEMU=~/src/qemu
 
 
 sudo -b $QEMU/build/qemu-system-x86_64 --trace "vfio_user*" -D /tmp/qemu.log -machine accel=kvm,type=q35 \
-   -cpu host -m 2G -mem-prealloc -object memory-backend-file,id=ram-node0,prealloc=yes,mem-path=/dev/hugepages/spdk,share=yes,size=2G \
-   -numa node,memdev=ram-node0 \
+   -cpu host -m 2G \
    -device virtio-net-pci,netdev=net0 -netdev user,id=net0,hostfwd=tcp::2222-:22 \
    -drive if=virtio,format=qcow2,file=/home/jlevon/bionic-server-cloudimg-amd64.img -drive if=virtio,format=raw,file=seed.img \
    -device '{"driver":"vfio-user-pci","socket":{"path": "/var/run/cntrl", "type": "unix"},"bus":"pcie.0","addr":"0x5"}'
 
+	# -numa node,memdev=ram-node0 \
 
+   # -mem-prealloc -object memory-backend-file,id=ram-node0,prealloc=yes,mem-path=/dev/hugepages/spdk,share=no,size=2G \
    #-nographic \
 
 
