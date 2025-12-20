@@ -30,11 +30,12 @@ for i in *.mp3; do
 	if echo $i | grep -q _SS_; then
 		mid3v2 -a "Serious Eats" -A "Serious Eats" "$i"
 	fi
-	set -x
 	if echo $i | grep -q 'Club Fish'; then
 		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
 	fi
-	set +x
+	if echo $i | grep -q 'Little Fish'; then
+		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
+	fi
 	if echo $i | grep -q 'OUTTAKES'; then
 		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
 	fi
