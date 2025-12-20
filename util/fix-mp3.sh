@@ -7,4 +7,5 @@ for i in "$@"; do
 	ffmpeg -i "$i" "$i".wav
 	rm "$i"
 	ffmpeg -i "$i".wav "$i"
+	rm "$i".wav
 done
