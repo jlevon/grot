@@ -2,9 +2,7 @@
 
 set -x
 
-sudo -b pkill -f -9 nvmf_tgt
-sudo -b pkill -f -9 reactor_0
-sudo -b pkill -f qemu-system-x86_64
+sudo -b pkill -f -9 nvmf_tgt; sudo -b pkill -f -9 reactor_0; sudo -b pkill -f qemu-system-x86_64
 
 (cd ~/src/spdk/ ;
 sudo -b rm -f /var/run/cntrl ;
@@ -31,10 +29,10 @@ sudo -b $QEMU/build/qemu-system-x86_64 --trace "vfio_user*" -D /tmp/qemu.log -ma
    -numa node,memdev=ram-node0 \
    -device virtio-net-pci,netdev=net0 -netdev user,id=net0,hostfwd=tcp::2222-:22 \
    -drive if=virtio,format=qcow2,file=/home/jlevon/bionic-server-cloudimg-amd64.img -drive if=virtio,format=raw,file=seed.img \
+   -nographic \
    -device '{"driver":"vfio-user-pci","socket":{"path": "/var/run/cntrl", "type": "unix"},"bus":"pcie.0","addr":"0x5"}'
 
 
-   #-nographic \
 
 
 #   -nographic -device vfio-user-pci,socket=/var/run/cntrl,bus=pcie.0,addr=0x03

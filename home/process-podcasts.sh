@@ -30,14 +30,17 @@ for i in *.mp3; do
 	if echo $i | grep -q _SS_; then
 		mid3v2 -a "Serious Eats" -A "Serious Eats" "$i"
 	fi
+	set -x
+	echo $i
 	if echo $i | grep -q 'Club Fish'; then
-		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
+		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" -t "$i" "$i"
 	fi
+	set +x
 	if echo $i | grep -q 'Little Fish'; then
-		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
+		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" -t "$i" "$i"
 	fi
 	if echo $i | grep -q 'OUTTAKES'; then
-		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
+		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" -t "$i" "$i"
 	fi
 	if echo $i | grep -q '^202.* SS '; then
 		if ! mid3v2 -l "$i" | grep -a '^TALB'>/dev/null; then
@@ -46,6 +49,9 @@ for i in *.mp3; do
 	fi
 	if mid3v2 -l "$i" | grep -a 'TCOP=.*iHeart'>/dev/null; then
 		mid3v2 --delete-frames TCOP "$i"
+	fi
+	if mid3v2 -l "$i" | grep -aq 'NSTAAF'; then
+		mid3v2 -a "No Such Thing As A Fish" -A "No Such Thing As A Fish" "$i"
 	fi
 	if mid3v2 -l "$i" | grep -a 'TPE1=.*iHeart'>/dev/null; then
 		mid3v2 -a "$(mid3v2 -l "$i" | grep -a ^TALB | cut -f2 -d=)" "$i"

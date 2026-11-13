@@ -26,7 +26,7 @@ move ../home/BBC\ Radio\ 4/The\ Food\ Programme/ The\ Food\ Programme.*
 move ../home/BBC\ Radio\ 4/The\ Kitchen\ Cabinet/ The\ Kitchen\ Cabinet.*
 
 move ../ra/ RA*odcast*
-move ../ra/ RA.*
+move ../ra/ RA*
 
 move ../home/No\ Such\ Thing\ As\ A\ Fish/No\ Such\ Thing\ As\ A\ Fish/ No\ Such\ Thing\ As\ A\ Fish.*
 

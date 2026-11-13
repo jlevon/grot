@@ -10,3 +10,8 @@ while coredumpctl list >/dev/null; do
 done
 
 coredumpctl list
+
+looking through your slides. ready for some questions?
+CoCoCo (yeah, confidential computing containers :slightly_smiling_face:). no VGPU - that means "scale/density is irrelevant for cococo" - per-host pGPUs are < 100 per host and we have no scale issues here. therefore VM-based containers is confidential XOR scale - right? (Obviously non-GPU case could be different)
+you say TEE is pod based - sidecars and so on are inside trust boundary then i.e. run in the VM? excluding the source side of peer pods
+how critical is virtio-fs here for the non-coco case in general? We don't have this - yet.

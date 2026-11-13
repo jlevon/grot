@@ -1,4 +1,22 @@
-#!/usr/bin/python3
+
+# run via:
+
+# python3 -m venv .venv
+# source .venv/bin/activate
+# pip install ytmusicapi
+# pip install mutagen
+# python3 ~/src/grot/home/m3u-to-youtube 2025.12.m3u
+
+# may need
+#
+# ytmusicapi oauth
+
+# enter client id secret from below
+# then cp oauth.json ~/.ytmusic.oauth.json
+#
+
+
+# above is stale! need to use 'ytmusicapi browser' to create browser.json
 
 from ytmusicapi.ytmusic import OAuthCredentials, YTMusic
 from mutagen.easyid3 import EasyID3
@@ -11,8 +29,10 @@ client_id=open("/home/jlevon/.ytmusic.client_id", "r").read().strip("\n")
 print(client_id)
 client_secret=open("/home/jlevon/.ytmusic.client_secret", "r").read().strip("\n")
 print(client_secret)
-ytmusic = YTMusic("/home/jlevon/.ytmusic.oauth.json",  oauth_credentials=OAuthCredentials(client_id=client_id, client_secret=client_secret))
+#ytmusic = YTMusic("/home/jlevon/.ytmusic.oauth.json",  oauth_credentials=OAuthCredentials(client_id=client_id, client_secret=client_secret))
+ytmusic = YTMusic("browser.json")
 
+# breakpoint()
 #search_results = ytmusic.search("Oasis Wonderwall")
 
 playlist_id = None
