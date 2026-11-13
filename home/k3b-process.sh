@@ -6,7 +6,6 @@
 #
 # when done, use m3u-to-youtube and then https://www.tunemymusic.com/transfer/youtube-to-spotify
 
-
 indir=$(pwd)
 outdir=/tmp/p.$$
 mkdir $outdir
